@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "start": "npm run compile; node src/main.js",
+    "start": "npm run compile && node src/main.js",
     "compile": "tsc"
   },
   "dependencies": {
