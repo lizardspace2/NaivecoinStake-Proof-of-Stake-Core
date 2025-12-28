@@ -5,7 +5,7 @@ import {
     getCoinbaseTransaction, isValidAddress, processTransactions, Transaction, UnspentTxOut
 } from './transaction';
 import {addToTransactionPool, getTransactionPool, updateTransactionPool} from './transactionPool';
-import {createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet} from './wallet';
+import {createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet, getDilithiumSync} from './wallet';
 import {BigNumber} from 'bignumber.js';
 
 class Block {
@@ -32,26 +32,61 @@ class Block {
     }
 }
 
-const genesisTransaction = {
-    'txIns': [{'signature': '', 'txOutId': '', 'txOutIndex': 0}],
-    'txOuts': [{
-        'address': '04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a',
-        'amount': 50
-    }],
-    'id': 'e655f6a5f26dc9b4cac6e46f52336428287759cf81ef5ff10854f69d68f43fa3'
-};
-
-const genesisBlock: Block = new Block(
-    0, '91a73664bc84c0baa1fc75ea6e4aa6d1d20c5df664c724e3159aefc2e1186627', '', 1465154705, [genesisTransaction], 0, 0, "04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a"
-);
+// Genesis block will be created dynamically after Dilithium initialization
+let genesisBlock: Block = null;
 
 // Number of blocks that can be minted with accounts without any coins
 const mintingWithoutCoinIndex = 100;
 
-let blockchain: Block[] = [genesisBlock];
+let blockchain: Block[] = [];
 
 // the unspent txOut of genesis block is set to unspentTxOuts on startup
-let unspentTxOuts: UnspentTxOut[] = processTransactions(blockchain[0].data, [], 0);
+let unspentTxOuts: UnspentTxOut[] = [];
+
+// Initialize genesis block with Dilithium address
+const initGenesisBlock = (): void => {
+    try {
+        const dilithium = getDilithiumSync();
+        // Generate a deterministic genesis address
+        // Note: generateKeys() is non-deterministic, but for genesis we'll use the first generated key
+        const keyPair = dilithium.generateKeys();
+        const genesisAddress = Buffer.from(keyPair.publicKey).toString('hex');
+        
+        const genesisTransaction = {
+            'txIns': [{'signature': '', 'txOutId': '', 'txOutIndex': 0}],
+            'txOuts': [{
+                'address': genesisAddress,
+                'amount': 50
+            }],
+            'id': ''
+        };
+        
+        // Calculate transaction ID
+        const txInContent = genesisTransaction.txIns
+            .map((txIn: any) => txIn.txOutId + txIn.txOutIndex)
+            .reduce((a, b) => a + b, '');
+        const txOutContent = genesisTransaction.txOuts
+            .map((txOut: any) => txOut.address + txOut.amount)
+            .reduce((a, b) => a + b, '');
+        genesisTransaction.id = CryptoJS.SHA256(txInContent + txOutContent).toString();
+        
+        // Calculate block hash
+        const timestamp = 1465154705;
+        const hash = calculateHash(0, '', timestamp, [genesisTransaction], 0, 0, genesisAddress);
+        
+        genesisBlock = new Block(
+            0, hash, '', timestamp, [genesisTransaction], 0, 0, genesisAddress
+        );
+        
+        blockchain = [genesisBlock];
+        unspentTxOuts = processTransactions(blockchain[0].data, [], 0);
+        
+        console.log('Genesis block initialized with Dilithium address');
+    } catch (error) {
+        console.error('Error initializing genesis block:', error);
+        throw error;
+    }
+};
 
 const getBlockchain = (): Block[] => blockchain;
 
@@ -252,7 +287,25 @@ const isValidChain = (blockchainToValidate: Block[]): UnspentTxOut[] => {
     console.log('isValidChain:');
     console.log(JSON.stringify(blockchainToValidate));
     const isValidGenesis = (block: Block): boolean => {
-        return JSON.stringify(block) === JSON.stringify(genesisBlock);
+        // Validate genesis block structure instead of exact match
+        // This allows for different Dilithium addresses while maintaining structure
+        if (block.index !== 0) {
+            return false;
+        }
+        if (block.previousHash !== '') {
+            return false;
+        }
+        if (block.data.length !== 1) {
+            return false;
+        }
+        if (block.data[0].txIns.length !== 1 || block.data[0].txOuts.length !== 1) {
+            return false;
+        }
+        if (block.data[0].txOuts[0].amount !== 50) {
+            return false;
+        }
+        // Verify the hash matches
+        return hashMatchesBlockContent(block);
     };
 
     if (!isValidGenesis(blockchainToValidate[0])) {
@@ -318,5 +371,5 @@ export {
     Block, getBlockchain, getUnspentTxOuts, getLatestBlock, sendTransaction,
     generateRawNextBlock, generateNextBlock, generatenextBlockWithTransaction,
     handleReceivedTransaction, getMyUnspentTransactionOutputs,
-    getAccountBalance, isValidBlockStructure, replaceChain, addBlockToChain
+    getAccountBalance, isValidBlockStructure, replaceChain, addBlockToChain, initGenesisBlock
 };

@@ -1,8 +1,6 @@
 import * as CryptoJS from 'crypto-js';
-import * as ecdsa from 'elliptic';
 import * as _ from 'lodash';
-
-const ec = new ecdsa.ec('secp256k1');
+import {getDilithiumSync} from './wallet';
 
 const COINBASE_AMOUNT: number = 50;
 
@@ -166,13 +164,27 @@ const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: Unsp
     }
     const address = referencedUTxOut.address;
 
-    const key = ec.keyFromPublic(address, 'hex');
-    const validSignature: boolean = key.verify(transaction.id, txIn.signature);
-    if (!validSignature) {
-        console.log('invalid txIn signature: %s txId: %s address: %s', txIn.signature, transaction.id, referencedUTxOut.address);
+    try {
+        const dilithium = getDilithiumSync();
+        const publicKeyArray = Buffer.from(address, 'hex');
+        const signatureArray = Buffer.from(txIn.signature, 'hex');
+        const messageArray = Buffer.from(transaction.id, 'hex');
+        
+        // Convert to Uint8Array
+        const publicKey = new Uint8Array(publicKeyArray);
+        const signature = new Uint8Array(signatureArray);
+        const message = new Uint8Array(messageArray);
+        
+        const validSignature: boolean = dilithium.verify(signature, message, publicKey);
+        if (!validSignature) {
+            console.log('invalid txIn signature: %s txId: %s address: %s', txIn.signature, transaction.id, referencedUTxOut.address);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.log('error verifying signature: ' + error.message);
         return false;
     }
-    return true;
 };
 
 const getTxInAmount = (txIn: TxIn, aUnspentTxOuts: UnspentTxOut[]): number => {
@@ -213,10 +225,23 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
             ' key that does not match the address that is referenced in txIn');
         throw Error();
     }
-    const key = ec.keyFromPrivate(privateKey, 'hex');
-    const signature: string = toHexString(key.sign(dataToSign).toDER());
-
-    return signature;
+    
+    try {
+        const dilithium = getDilithiumSync();
+        // Private key is stored as JSON string
+        const keyPair = JSON.parse(privateKey);
+        const messageBuffer = Buffer.from(dataToSign, 'hex');
+        
+        // Convert arrays back to Uint8Array
+        const privateKeyUint8 = new Uint8Array(keyPair.privateKey);
+        const messageUint8 = new Uint8Array(messageBuffer);
+        
+        const signature = dilithium.sign(messageUint8, privateKeyUint8);
+        return Buffer.from(signature).toString('hex');
+    } catch (error) {
+        console.log('error signing transaction: ' + error.message);
+        throw error;
+    }
 };
 
 const updateUnspentTxOuts = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[]): UnspentTxOut[] => {
@@ -247,14 +272,16 @@ const processTransactions = (aTransactions: Transaction[], aUnspentTxOuts: Unspe
     return updateUnspentTxOuts(aTransactions, aUnspentTxOuts);
 };
 
-const toHexString = (byteArray): string => {
-    return Array.from(byteArray, (byte: any) => {
-        return ('0' + (byte & 0xFF).toString(16)).slice(-2);
-    }).join('');
-};
-
 const getPublicKey = (aPrivateKey: string): string => {
-    return ec.keyFromPrivate(aPrivateKey, 'hex').getPublic().encode('hex');
+    try {
+        // Private key is stored as JSON string containing both keys
+        const keyPair = JSON.parse(aPrivateKey);
+        // Convert array back to Uint8Array and then to hex
+        return Buffer.from(keyPair.publicKey).toString('hex');
+    } catch (error) {
+        console.log('error getting public key: ' + error.message);
+        throw error;
+    }
 };
 
 const isValidTxInStructure = (txIn: TxIn): boolean => {
@@ -321,20 +348,33 @@ const isValidTransactionStructure = (transaction: Transaction) => {
     return true;
 };
 
-// valid address is a valid ecdsa public key in the 04 + X-coordinate + Y-coordinate format
+// valid address is a valid Dilithium public key (1952 bytes = 3904 hex characters for Dilithium3)
 const isValidAddress = (address: string): boolean => {
-    if (address.length !== 130) {
-        console.log(address);
-        console.log('invalid public key length');
+    // Dilithium3 public key is 1952 bytes = 3904 hex characters
+    // We'll be flexible and accept any valid hex string of reasonable length
+    if (address.length < 100) {
+        console.log('invalid public key length (too short)');
+        return false;
+    } else if (address.length > 10000) {
+        console.log('invalid public key length (too long)');
         return false;
     } else if (address.match('^[a-fA-F0-9]+$') === null) {
         console.log('public key must contain only hex characters');
         return false;
-    } else if (!address.startsWith('04')) {
-        console.log('public key must start with 04');
+    }
+    // Basic validation: check if buffer size matches expected Dilithium3 public key size (1952 bytes)
+    try {
+        const publicKeyBuffer = Buffer.from(address, 'hex');
+        // Dilithium3 public key is 1952 bytes = 3904 hex characters
+        if (publicKeyBuffer.length !== 1952) {
+            console.log('public key size mismatch. Expected 1952 bytes, got ' + publicKeyBuffer.length);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.log('error validating address: ' + error.message);
         return false;
     }
-    return true;
 };
 
 export {

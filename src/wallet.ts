@@ -1,10 +1,39 @@
-import {ec} from 'elliptic';
 import {existsSync, readFileSync, unlinkSync, writeFileSync} from 'fs';
 import * as _ from 'lodash';
+import * as DilithiumModule from 'dilithium-crystals-js';
 import {getPublicKey, getTransactionId, signTxIn, Transaction, TxIn, TxOut, UnspentTxOut} from './transaction';
 
-const EC = new ec('secp256k1');
 const privateKeyLocation = process.env.PRIVATE_KEY || 'node/wallet/private_key';
+
+// Cache for Dilithium instance to avoid repeated initialization
+let dilithiumInstance: any = null;
+
+// Initialize Dilithium instance (synchronous wrapper)
+const getDilithium = (): any => {
+    if (dilithiumInstance === null) {
+        // dilithium-crystals-js exports a Promise, we need to handle it
+        // For now, we'll use a synchronous approach by storing the promise result
+        throw new Error('Dilithium not initialized. Call initDilithium() first.');
+    }
+    return dilithiumInstance;
+};
+
+// Initialize Dilithium (should be called at startup)
+const initDilithium = async (): Promise<void> => {
+    if (dilithiumInstance === null) {
+        dilithiumInstance = await DilithiumModule;
+    }
+};
+
+// Synchronous version that uses cached instance
+const getDilithiumSync = (): any => {
+    if (dilithiumInstance === null) {
+        // Try to get it synchronously - this will fail if not initialized
+        // In production, you'd want to ensure initDilithium is called at startup
+        throw new Error('Dilithium not initialized. Ensure initDilithium() was called.');
+    }
+    return dilithiumInstance;
+};
 
 const getPrivateFromWallet = (): string => {
     const buffer = readFileSync(privateKeyLocation, 'utf8');
@@ -13,14 +42,29 @@ const getPrivateFromWallet = (): string => {
 
 const getPublicFromWallet = (): string => {
     const privateKey = getPrivateFromWallet();
-    const key = EC.keyFromPrivate(privateKey, 'hex');
-    return key.getPublic().encode('hex');
+    // Private key is stored as base64 JSON string containing both keys
+    // Format: {"publicKey": [...], "privateKey": [...]}
+    try {
+        const keyPair = JSON.parse(privateKey);
+        // Convert Uint8Array to hex string
+        return Buffer.from(keyPair.publicKey).toString('hex');
+    } catch (error) {
+        // Legacy format: just private key, need to extract public key
+        // For now, we'll need to store both keys
+        throw new Error('Invalid key format. Please regenerate wallet.');
+    }
 };
 
 const generatePrivateKey = (): string => {
-    const keyPair = EC.genKeyPair();
-    const privateKey = keyPair.getPrivate();
-    return privateKey.toString(16);
+    const dilithium = getDilithiumSync();
+    const keyPair = dilithium.generateKeys();
+    // Store both keys as JSON string (base64 encoded arrays)
+    // Convert Uint8Array to regular arrays for JSON serialization
+    const keyPairObj = {
+        publicKey: Array.from(keyPair.publicKey),
+        privateKey: Array.from(keyPair.privateKey)
+    };
+    return JSON.stringify(keyPairObj);
 };
 
 const initWallet = () => {
@@ -28,10 +72,14 @@ const initWallet = () => {
     if (existsSync(privateKeyLocation)) {
         return;
     }
-    const newPrivateKey = generatePrivateKey();
-
-    writeFileSync(privateKeyLocation, newPrivateKey);
-    console.log('new wallet with private key created to : %s', privateKeyLocation);
+    try {
+        const newPrivateKey = generatePrivateKey();
+        writeFileSync(privateKeyLocation, newPrivateKey);
+        console.log('new wallet with private key created to : %s', privateKeyLocation);
+    } catch (error) {
+        console.error('Error initializing wallet. Make sure Dilithium is initialized first.');
+        throw error;
+    }
 };
 
 const deleteWallet = () => {
@@ -133,4 +181,4 @@ const createTransaction = (receiverAddress: string, amount: number, privateKey: 
 };
 
 export {createTransaction, getPublicFromWallet,
-    getPrivateFromWallet, getBalance, generatePrivateKey, initWallet, deleteWallet, findUnspentTxOuts};
+    getPrivateFromWallet, getBalance, generatePrivateKey, initWallet, deleteWallet, findUnspentTxOuts, initDilithium, getDilithiumSync};
