@@ -11,6 +11,7 @@ const httpPort = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort = parseInt(process.env.P2P_PORT) || 6001;
 const initHttpServer = (myHttpPort) => {
     const app = express();
+    app.set('etag', false);
     app.use(bodyParser.json());
     app.use((err, req, res, next) => {
         if (err) {
@@ -122,6 +123,13 @@ wallet_1.initDilithium().then(() => {
     wallet_1.initWallet();
     initHttpServer(httpPort);
     p2p_1.initP2PServer(p2pPort);
+    if (process.env.PEERS) {
+        const peers = process.env.PEERS.split(',');
+        console.log('Connect to peers: ' + peers);
+        peers.forEach((peer) => {
+            p2p_1.connectToPeers(peer);
+        });
+    }
     console.log('Dilithium post-quantum cryptography initialized');
 }).catch((error) => {
     console.error('Failed to initialize Dilithium:', error);

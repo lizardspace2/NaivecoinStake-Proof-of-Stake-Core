@@ -119,7 +119,13 @@ const validateCoinbaseTx = (transaction, blockIndex) => {
         console.log('invalid number of txOuts in coinbase transaction');
         return false;
     }
-    if (transaction.txOuts[0].amount !== COINBASE_AMOUNT) {
+    if (blockIndex === 0) {
+        if (transaction.txOuts[0].amount !== 100000000) {
+            console.log('invalid genesis coinbase amount');
+            return false;
+        }
+    }
+    else if (transaction.txOuts[0].amount !== COINBASE_AMOUNT) {
         console.log('invalid coinbase amount in coinbase transaction');
         return false;
     }
