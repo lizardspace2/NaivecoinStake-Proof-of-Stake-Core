@@ -1,12 +1,12 @@
 import * as CryptoJS from 'crypto-js';
 import * as _ from 'lodash';
-import {broadcastLatest, broadCastTransactionPool} from './p2p';
+import { broadcastLatest, broadCastTransactionPool } from './p2p';
 import {
     getCoinbaseTransaction, isValidAddress, processTransactions, Transaction, UnspentTxOut
 } from './transaction';
-import {addToTransactionPool, getTransactionPool, updateTransactionPool} from './transactionPool';
-import {createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet, getDilithiumSync} from './wallet';
-import {BigNumber} from 'bignumber.js';
+import { addToTransactionPool, getTransactionPool, updateTransactionPool } from './transactionPool';
+import { createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet, getDilithiumSync, DILITHIUM_LEVEL } from './wallet';
+import { BigNumber } from 'bignumber.js';
 
 class Block {
 
@@ -20,7 +20,7 @@ class Block {
     public minterAddress: string;
 
     constructor(index: number, hash: string, previousHash: string,
-                timestamp: number, data: Transaction[], difficulty: number, minterBalance: number, minterAddress: string) {
+        timestamp: number, data: Transaction[], difficulty: number, minterBalance: number, minterAddress: string) {
         this.index = index;
         this.previousHash = previousHash;
         this.timestamp = timestamp;
@@ -49,18 +49,18 @@ const initGenesisBlock = (): void => {
         const dilithium = getDilithiumSync();
         // Generate a deterministic genesis address
         // Note: generateKeys() is non-deterministic, but for genesis we'll use the first generated key
-        const keyPair = dilithium.generateKeys();
+        const keyPair = dilithium.generateKeys(DILITHIUM_LEVEL);
         const genesisAddress = Buffer.from(keyPair.publicKey).toString('hex');
-        
+
         const genesisTransaction = {
-            'txIns': [{'signature': '', 'txOutId': '', 'txOutIndex': 0}],
+            'txIns': [{ 'signature': '', 'txOutId': '', 'txOutIndex': 0 }],
             'txOuts': [{
                 'address': genesisAddress,
                 'amount': 50
             }],
             'id': ''
         };
-        
+
         // Calculate transaction ID
         const txInContent = genesisTransaction.txIns
             .map((txIn: any) => txIn.txOutId + txIn.txOutIndex)
@@ -69,18 +69,18 @@ const initGenesisBlock = (): void => {
             .map((txOut: any) => txOut.address + txOut.amount)
             .reduce((a, b) => a + b, '');
         genesisTransaction.id = CryptoJS.SHA256(txInContent + txOutContent).toString();
-        
+
         // Calculate block hash
         const timestamp = 1465154705;
         const hash = calculateHash(0, '', timestamp, [genesisTransaction], 0, 0, genesisAddress);
-        
+
         genesisBlock = new Block(
             0, hash, '', timestamp, [genesisTransaction], 0, 0, genesisAddress
         );
-        
+
         blockchain = [genesisBlock];
         unspentTxOuts = processTransactions(blockchain[0].data, [], 0);
-        
+
         console.log('Genesis block initialized with Dilithium address');
     } catch (error) {
         console.error('Error initializing genesis block:', error);
@@ -171,7 +171,7 @@ const findBlock = (index: number, previousHash: string, data: Transaction[], dif
     let pastTimestamp: number = 0;
     while (true) {
         let timestamp: number = getCurrentTimestamp();
-        if(pastTimestamp !== timestamp) {
+        if (pastTimestamp !== timestamp) {
             let hash: string = calculateHash(index, previousHash, timestamp, data, difficulty, getAccountBalance(), getPublicFromWallet());
             if (isBlockStakingValid(previousHash, getPublicFromWallet(), timestamp, getAccountBalance(), difficulty, index)) {
                 return new Block(index, hash, previousHash, timestamp, data, difficulty, getAccountBalance(), getPublicFromWallet());
@@ -196,9 +196,9 @@ const calculateHashForBlock = (block: Block): string =>
     calculateHash(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.minterBalance, block.minterAddress);
 
 const calculateHash = (index: number, previousHash: string, timestamp: number, data: Transaction[],
-                       difficulty: number, minterBalance: number, minterAddress: string): string =>
+    difficulty: number, minterBalance: number, minterAddress: string): string =>
     CryptoJS.SHA256(index + previousHash + timestamp + data + difficulty + minterBalance + minterAddress).toString();
-    // The hash for Proof of Stake does not include a nonce to avoid more than one trial per second
+// The hash for Proof of Stake does not include a nonce to avoid more than one trial per second
 
 const isValidBlockStructure = (block: Block): boolean => {
     return typeof block.index === 'number'
@@ -239,7 +239,7 @@ const getAccumulatedDifficulty = (aBlockchain: Block[]): number => {
 };
 
 const isValidTimestamp = (newBlock: Block, previousBlock: Block): boolean => {
-    return ( previousBlock.timestamp - 60 < newBlock.timestamp )
+    return (previousBlock.timestamp - 60 < newBlock.timestamp)
         && newBlock.timestamp - 60 < getCurrentTimestamp();
 };
 
@@ -266,12 +266,12 @@ const hashMatchesBlockContent = (block: Block): boolean => {
 // Cf https://blog.ethereum.org/2014/07/05/stake/
 const isBlockStakingValid = (prevhash: string, address: string, timestamp: number, balance: number, difficulty: number, index: number): boolean => {
     difficulty = difficulty + 1;
-    
+
     // Allow minting without coins for a few blocks
-    if(index <= mintingWithoutCoinIndex) {
+    if (index <= mintingWithoutCoinIndex) {
         balance = balance + 1;
     }
-    
+
     const balanceOverDifficulty = new BigNumber(2).exponentiatedBy(256).times(balance).dividedBy(difficulty);
     const stakingHash: string = CryptoJS.SHA256(prevhash + address + timestamp).toString();
     const decimalStakingHash = new BigNumber(stakingHash, 16);
