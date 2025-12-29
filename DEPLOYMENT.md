@@ -1,99 +1,154 @@
 
-# Guide de Déploiement : NaivecoinStake Node
+# Guide de Déploiement : NaivecoinStake sur Google Cloud Platform (GCP)
 
-Ce guide explique comment déployer un nœud de votre blockchain, avec un focus sur les solutions d'hébergement **gratuites** dans le cloud.
+Ce guide détaille étape par étape comment déployer votre nœud NaivecoinStake sur l'offre gratuite ("Free Tier") de Google Cloud Platform.
 
-## Prérequis
+## 1. Création de la Machine Virtuelle (VM)
 
-- [Docker](https://docs.docker.com/get-docker/) installé sur votre machine ou serveur.
-- Git pour cloner le dépôt.
+L'offre gratuite de GCP inclut une instance `e2-micro` dans certaines régions spécifiques.
 
-## Option 1 : Déploiement Rapide avec Docker (Local ou Serveur)
+1.  Connectez-vous à la [Console Google Cloud](https://console.cloud.google.com/).
+2.  Allez dans **Compute Engine** > **Instances de VM**.
+3.  Cliquez sur **Créer une instance**.
+4.  **Configuration Importante (pour la gratuité) :**
+    *   **Nom** : `naivecoin-node-1`
+    *   **Région** : Choisissez `us-central1`, `us-west1` ou `us-east1` (Seules ces régions sont éligibles au Free Tier).
+    *   **Type de machine** : `e2-micro` (2 vCPU, 1 Go de mémoire).
+    *   **Disque de démarrage** : Cliquez sur "Modifier".
+        *   Système d'exploitation : **Ubuntu** (Choisir la version `22.04 LTS` ou `20.04 LTS`).
+        *   Type de disque : **Disque persistant standard** (Standard persistent disk).
+        *   Taille : **30 Go** (Maximum inclus dans l'offre gratuite).
+5.  **Pare-feu (Firewall)** :
+    *   Cochez "Autoriser le trafic HTTP".
+    *   Cochez "Autoriser le trafic HTTPS".
+6.  Cliquez sur **Créer**.
 
-La méthode la plus simple pour lancer un nœud est d'utiliser Docker Compose.
+## 2. Configuration du Pare-feu (Ouvrir les ports)
 
-### 1. Construire et Lancer
+Par défaut, seuls les ports 80 (HTTP) et 443 (HTTPS) sont ouverts. Il faut ouvrir le port **3001** (API) et **6001** (P2P).
 
+1.  Dans la console, cherchez "Règles de pare-feu" (Firewall policies) ou allez dans **Réseau VPC** > **Pare-feu**.
+2.  Cliquez sur **Créer une règle de pare-feu**.
+3.  **Nom** : `allow-naivecoin-ports`
+4.  **Cibles** : `Toutes les instances du réseau`
+5.  **Plage d'adresses IP source** : `0.0.0.0/0` (Autorise tout le monde).
+6.  **Protocoles et ports** :
+    *   Cochez `tcp` et entrez : `3001,6001`
+7.  Cliquez sur **Créer**.
+
+## 3. Installation et Lancement du Nœud
+
+1.  Retournez dans **Compute Engine** > **Instances de VM**.
+2.  Cliquez sur le bouton **SSH** à côté de votre instance pour ouvrir un terminal dans votre navigateur.
+3.  Exécutez les commandes suivantes une par une :
+
+### A. Installer Docker et Git
 ```bash
-docker-compose up -d
+# Mettre à jour le système
+sudo apt-get update
+
+# Installer les prérequis
+sudo apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    git
+
+# Ajouter la clé GPG officielle de Docker
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Configurer le dépôt Docker
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Installer Docker Engine
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Vérifier que Docker fonctionne
+sudo docker run hello-world
 ```
 
-Cela lancera deux nœuds locaux (`node1` sur le port 3001/6001 et `node2` sur 3002/6002) qui sont connectés entre eux.
+### B. Configurer et Lancer le Nœud
 
-### 2. Personnalisation
+1.  **Cloner votre dépôt**
+    (Remplacez URL_DU_REPO par l'URL de votre repo GitHub/GitLab)
+    ```bash
+    git clone https://github.com/VOTRE_UTILISATEUR/NaivecoinStake-Proof-of-Stake-Core.git
+    cd NaivecoinStake-Proof-of-Stake-Core
+    ```
 
-Pour un déploiement sur un serveur unique (production), vous pouvez lancer un seul conteneur :
+2.  **Créer la configuration de production**
+    Créez un fichier `docker-compose.prod.yml` pour définir une installation propre à un seul nœud :
+    ```bash
+    nano docker-compose.prod.yml
+    ```
+    Collez le contenu suivant :
+    ```yaml
+    version: '3'
+    services:
+      node:
+        build: .
+        container_name: naivecoin-node
+        restart: always
+        ports:
+          - "3001:3001"
+          - "6001:6001"
+        environment:
+          - HTTP_PORT=3001
+          - P2P_PORT=6001
+          - PEERS=
+          - PRIVATE_KEY=node/wallet/private_key
+        volumes:
+          - ./genesis_key.json:/app/node/wallet/private_key
+    ```
+    (Sauvegardez avec `Ctrl+O`, `Entrée`, puis `Ctrl+X`)
 
-```bash
-docker build -t naivechain .
-docker run -d \
-  -p 80:3001 \
-  -p 6001:6001 \
-  -v $(pwd)/wallet:/app/node/wallet \
-  -e HTTP_PORT=3001 \
-  -e P2P_PORT=6001 \
-  -e PEERS=ws://IP_AUTRE_NODE:6001 \
-  naivechain
-```
+3.  **Configurer la Clé Genesis**
+    Créez le fichier contenant votre clé privée (indispensable pour que le nœud soit reconnu comme celui possédant les coins du bloc Genesis) :
+    ```bash
+    nano genesis_key.json
+    ```
+    Collez le contenu de votre fichier `genesis_key.json` local.
+    (Sauvegardez avec `Ctrl+O`, `Entrée`, puis `Ctrl+X`)
 
-- `-p 80:3001` : Rend l'API accessible sur le port 80 (HTTP).
-- `-p 6001:6001` : Ouvre le port P2P pour communiquer avec d'autres nœuds.
-- `-v ...` : Persiste votre portefeuille (clé privée) sur le serveur hôte.
+4.  **Lancer le nœud**
+    Utilisez le fichier de configuration de production pour lancer le nœud :
+    ```bash
+    sudo docker compose -f docker-compose.prod.yml up -d --build
+    ```
+
+    *   `-f docker-compose.prod.yml` : Utilise notre configuration spécifique.
+    *   `-d` : Mode "détaché" (tourne en arrière-plan).
+    *   `--build` : Construit l'image Docker.
+
+## 4. Vérification
+
+Une fois lancé, vérifiez que tout fonctionne :
+
+1.  Récupérez l'**IP Externe** de votre VM dans la console Google Cloud.
+2.  Dans votre navigateur, allez sur : `http://IP_EXTERNE:3001/blocks`
+3.  Vous devriez voir le bloc Genesis avec vos 100 millions de coins.
+
+## 5. Maintenance et Logs
+
+- **Voir les logs** :
+  ```bash
+  sudo docker compose -f docker-compose.prod.yml logs -f
+  ```
+- **Arrêter le nœud** :
+  ```bash
+  sudo docker compose -f docker-compose.prod.yml down
+  ```
+- **Mettre à jour le code** :
+  ```bash
+  git pull
+  sudo docker compose -f docker-compose.prod.yml up -d --build
+  ```
 
 ---
 
-## Option 2 : Hébergement Cloud Gratuit
-
-Héberger une blockchain demande que le serveur tourne **24h/24**. Voici les meilleures options gratuites en 2024/2025.
-
-### 1. Oracle Cloud "Always Free" (Recommandé)
-
-C'est l'offre la plus généreuse pour un nœud blockchain car elle offre beaucoup de RAM et de CPU sur ARM (Ampere).
-
-- **Ce qui est gratuit :** 
-  - Jusqu'à 4 instances ARM (24 Go de RAM au total).
-  - 2 instances AMD (1 Go RAM).
-  - Adresse IP publique incluse.
-- **Avantages :** Très puissant, parfait pour un nœud qui doit calculer/vérifier des blocs.
-- **Inconvénients :** Inscription parfois complexe (carte bancaire requise pour vérification d'identité).
-
-**Procédure :**
-1. Créer un compte Oracle Cloud Free Tier.
-2. Créer une instance de calcul (VM.Standard.A1.Flex).
-3. Ouvrir les ports 3001 (API) et 6001 (P2P) dans la "Security List" du VCN.
-4. Se connecter en SSH, installer Docker et cloner votre repo.
-5. Lancer avec `docker-compose up -d`.
-
-### 2. Google Cloud Platform (GCP) Free Tier
-
-- **Ce qui est gratuit :**
-  - Instance `e2-micro` (2 vCPU, 1 Go RAM).
-  - 30 Go de disque.
-- **Avantages :** Fiable, facile à utiliser.
-- **Inconvénients :** Puissance limitée (CPU partagé), facturation du trafic réseau sortant au-delà de certaines limites (mais suffisant pour un petit nœud).
-
-### 3. AWS Free Tier
-
-- **Ce qui est gratuit :**
-  - Instance `t2.micro` ou `t3.micro` (1 vCPU, 1 Go RAM) pendant **12 mois seulement**.
-- **Avantages :** Standard de l'industrie.
-- **Inconvénients :** Pas gratuit à vie (seulement 1 an).
-
----
-
-## Conseils de Sécurité
-
-1. **Pare-feu :** N'ouvrez que les ports nécessaires.
-   - 3001 (HTTP) : Pour contrôler votre nœud ou utiliser un explorer. Vous pouvez le restreindre à votre IP si c'est juste pour vous.
-   - 6001 (P2P) : Doit être ouvert à **tous** (0.0.0.0/0) pour que les autres nœuds puissent se synchroniser avec vous.
-2. **Clés Privées :** 
-   - Ne jamais commiter `genesis_key.json` ou vos fichiers de wallet (`node/wallet/*`).
-   - Sauvegardez-les en local.
-3. **HTTPS :** Si vous distribuez un wallet web qui se connecte au nœud, il faudra un certificat SSL (utilisez un reverse proxy comme Nginx + Let's Encrypt devant votre nœud).
-
-## Distribuer des Tokens
-
-Une fois votre nœud en ligne avec la clé Genesis :
-1. Connectez-vous à l'API de votre nœud.
-2. Utilisez `/sendTransaction` pour envoyer des tokens aux adresses de vos utilisateurs.
-3. Vos utilisateurs peuvent ensuite lancer leur propre nœud et "Minter" (stake) avec ces tokens.
+**Note** : L'IP externe d'une VM peut changer si vous l'arrêtez/redémarrez. Pour la production, il est conseillé de réserver une **Adresse IP statique externe** dans la section "Réseau VPC > Adresses IP" et de l'attacher à votre VM.

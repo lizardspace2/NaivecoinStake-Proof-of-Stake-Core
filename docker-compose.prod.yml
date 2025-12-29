@@ -1,0 +1,17 @@
+version: '3'
+services:
+  node:
+    build: .
+    container_name: naivecoin-node
+    restart: always
+    ports:
+      - "3001:3001"
+      - "6001:6001"
+    environment:
+      - HTTP_PORT=3001
+      - P2P_PORT=6001
+      - PEERS=
+      # PRIVATE_KEY will be loaded from the volume/file
+    volumes:
+      - ./genesis_key.json:/app/node/wallet/private_key_1
+      # Also mount the whole wallet dir just in case, but specific key mapping is safer or use a .env
