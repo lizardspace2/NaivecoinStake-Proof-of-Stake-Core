@@ -36,6 +36,17 @@ Par défaut, seuls les ports 80 (HTTP) et 443 (HTTPS) sont ouverts. Il faut ouvr
     *   Cochez `tcp` et entrez : `3001,6001`
 7.  Cliquez sur **Créer**.
 
+### Alternative : Via Cloud Shell
+
+Si vous préférez la ligne de commande, ouvrez le **Cloud Shell** (icône de terminal en haut à droite de la console) et lancez :
+
+```bash
+gcloud compute firewall-rules create allow-naivecoin-ports \
+    --allow tcp:3001,tcp:6001 \
+    --source-ranges 0.0.0.0/0 \
+    --description="Autoriser les ports API et P2P pour NaivecoinStake"
+```
+
 ## 3. Installation et Lancement du Nœud
 
 1.  Retournez dans **Compute Engine** > **Instances de VM**.
@@ -44,31 +55,24 @@ Par défaut, seuls les ports 80 (HTTP) et 443 (HTTPS) sont ouverts. Il faut ouvr
 
 ### A. Installer Docker et Git
 ```bash
-# Mettre à jour le système
+# 1. Mettre à jour et installer les prérequis
 sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release git
 
-# Installer les prérequis
-sudo apt-get install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    git
-
-# Ajouter la clé GPG officielle de Docker
+# 2. Ajouter la clé GPG officielle de Docker
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# Configurer le dépôt Docker
+# 3. Configurer le dépôt Docker
 echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Installer Docker Engine
+# 4. Installer Docker Engine
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Vérifier que Docker fonctionne
+# 5. Vérifier que Docker fonctionne
 sudo docker run hello-world
 ```
 
@@ -103,6 +107,7 @@ sudo docker run hello-world
           - PEERS=
           - PRIVATE_KEY=node/wallet/private_key
         volumes:
+          # Monte le fichier local genesis_key.json vers l'emplacement attendu par le wallet
           - ./genesis_key.json:/app/node/wallet/private_key
     ```
     (Sauvegardez avec `Ctrl+O`, `Entrée`, puis `Ctrl+X`)
