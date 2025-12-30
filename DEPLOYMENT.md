@@ -242,44 +242,19 @@ Cette méthode est plus proche d'un réseau réel décentralisé.
     *   Clonez le dépôt (Step 3.B.1).
 
 3.  **Configurer le Node 2**
-    Créez un fichier `docker-compose.prod.yml` différent pour ce nœud. Il doit se connecter à l'IP du premier nœud.
-    
-    *Récupérez d'abord l'**IP Interne** (si même réseau VPC) ou **IP Externe** du Node 1.*
+    Le dépôt contient maintenant un fichier **déjà configuré** avec l'adresse IP de votre premier nœud : `docker-compose-peer.yml`.
 
-    ```bash
-    nano docker-compose.prod.yml
-    ```
-    Collez ceci (Remplacez `IP_NODE_1` par l'adresse IP du Node 1) :
-    ```yaml
-    version: '3'
-    services:
-      node:
-        build: .
-        container_name: naivecoin-node
-        restart: always
-        ports:
-          - "3001:3001"
-          - "6001:6001"
-        environment:
-          - HTTP_PORT=3001
-          - P2P_PORT=6001
-          # Remplacez IP_NODE_1 par l'adresse IP interne de votre premier nœud (ex: 10.128.0.2)
-          # Trouvez cette IP dans la Console GCP > Instances de VM > Colonne "IP interne"
-          - PEERS=ws://IP_NODE_1:6001
-          - PRIVATE_KEY=node/wallet/private_key
-        # Pas de volumes pour genesis_key.json ici, ce noeud va créer son propre wallet
-    ```
-    (Sauvegardez avec `Ctrl+O`, `Entrée`, puis `Ctrl+X`)
+    Vous n'avez **rien à modifier** !
 
 4.  **Lancer le Node 2**
     ```bash
-    sudo docker compose -f docker-compose.prod.yml up -d --build
+    sudo docker compose -f docker-compose-peer.yml up -d --build
     ```
 
 5.  **Vérification**
     Consultez les logs pour voir la connexion :
     ```bash
-    sudo docker compose -f docker-compose.prod.yml logs -f
+    sudo docker compose -f docker-compose-peer.yml logs -f
     ```
     Vous devriez voir `connection to peer: ws://IP_NODE_1:6001`.
 

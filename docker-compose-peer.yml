@@ -1,0 +1,16 @@
+version: '3'
+services:
+  node:
+    build: .
+    container_name: naivecoin-node
+    restart: always
+    ports:
+      - "3001:3001"
+      - "6001:6001"
+    environment:
+      - HTTP_PORT=3001
+      - P2P_PORT=6001
+      # IP of the MAIN node (Node 1)
+      - PEERS=ws://34.66.32.62:6001
+      - PRIVATE_KEY=node/wallet/private_key
+    # No volumes mounted: this node will generate its own random wallet
