@@ -251,7 +251,9 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
         // Handle case where signature is an object (e.g. {0: x, 1: y})
         if (typeof signature === 'object' && !Array.isArray(signature) && !(signature instanceof Uint8Array)) {
             console.log('DEBUG: Signature is a plain object, converting to array values');
+            console.log('DEBUG: Signature keys:', _.keys(signature));
             const sigArray = _.values(signature);
+            console.log('DEBUG: Converted array length:', sigArray.length);
             return Buffer.from(sigArray as any).toString('hex');
         }
 
