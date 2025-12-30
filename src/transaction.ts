@@ -234,7 +234,10 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
     try {
         const dilithium = getDilithiumSync();
         // Private key is stored as JSON string
+        // Private key is stored as JSON string
         const keyPair = JSON.parse(privateKey);
+        console.log('DEBUG: signTxIn privateKey isArray:', Array.isArray(keyPair.privateKey));
+
         const messageBuffer = Buffer.from(dataToSign, 'hex');
 
         // Convert arrays back to Uint8Array
@@ -242,6 +245,16 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
         const messageUint8 = new Uint8Array(messageBuffer);
 
         const signature = dilithium.sign(messageUint8, privateKeyUint8, DILITHIUM_LEVEL);
+        console.log('DEBUG: signature type:', typeof signature);
+        console.log('DEBUG: signature isArray:', Array.isArray(signature));
+
+        // Handle case where signature is an object (e.g. {0: x, 1: y})
+        if (typeof signature === 'object' && !Array.isArray(signature) && !(signature instanceof Uint8Array)) {
+            console.log('DEBUG: Signature is a plain object, converting to array values');
+            const sigArray = _.values(signature);
+            return Buffer.from(sigArray as any).toString('hex');
+        }
+
         return Buffer.from(signature).toString('hex');
     } catch (error) {
         console.log('error signing transaction: ' + error.message);
