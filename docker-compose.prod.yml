@@ -11,7 +11,7 @@ services:
       - HTTP_PORT=3001
       - P2P_PORT=6001
       - PEERS=
-      # PRIVATE_KEY will be loaded from the volume/file
+      - PRIVATE_KEY=node/wallet/private_key
     volumes:
-      - ./genesis_key.json:/app/node/wallet/private_key_1
+      - ./genesis_key.json:/app/node/wallet/private_key
       # Also mount the whole wallet dir just in case, but specific key mapping is safer or use a .env
