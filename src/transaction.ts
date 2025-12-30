@@ -281,6 +281,13 @@ const getPublicKey = (aPrivateKey: string): string => {
     try {
         // Private key is stored as JSON string containing both keys
         const keyPair = JSON.parse(aPrivateKey);
+
+        console.log('DEBUG: publicKey type:', typeof keyPair.publicKey);
+        console.log('DEBUG: isArray:', Array.isArray(keyPair.publicKey));
+        if (!Array.isArray(keyPair.publicKey)) {
+            console.log('DEBUG: content snippet:', JSON.stringify(keyPair.publicKey).substring(0, 100));
+        }
+
         // Convert array back to Uint8Array and then to hex
         return Buffer.from(keyPair.publicKey).toString('hex');
     } catch (error) {
