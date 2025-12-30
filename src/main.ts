@@ -143,13 +143,22 @@ initDilithium().then(() => {
     initWallet();
     initHttpServer(httpPort);
     initP2PServer(p2pPort);
+    // Public Bootnodes (Official Entry Points)
+    const bootNodes = ['ws://34.66.32.62:6001'];
+    let peers = bootNodes;
+
     if (process.env.PEERS) {
-        const peers = process.env.PEERS.split(',');
-        console.log('Connect to peers: ' + peers);
-        peers.forEach((peer) => {
-            connectToPeers(peer);
-        });
+        const customPeers = process.env.PEERS.split(',');
+        peers = [...peers, ...customPeers];
     }
+
+    // Remove duplicates
+    peers = [...new Set(peers)];
+
+    console.log('Connect to peers: ' + peers);
+    peers.forEach((peer) => {
+        connectToPeers(peer);
+    });
     console.log('Dilithium post-quantum cryptography initialized');
 }).catch((error) => {
     console.error('Failed to initialize Dilithium:', error);

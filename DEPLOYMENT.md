@@ -242,9 +242,11 @@ Cette méthode est plus proche d'un réseau réel décentralisé.
     *   Clonez le dépôt (Step 3.B.1).
 
 3.  **Configurer le Node 2**
-    Le dépôt contient maintenant un fichier **déjà configuré** avec l'adresse IP de votre premier nœud : `docker-compose-peer.yml`.
+    Le dépôt contient un fichier **déjà configuré** pour le réseau public : `docker-compose-peer.yml`.
+    
+    Grâce à la mise à jour "Bootnode", le nœud se connectera **automatiquement** au réseau principal sans aucune configuration d'IP.
 
-    Vous n'avez **rien à modifier** !
+    Vous n'avez **rien à faire** à cette étape !
 
 4.  **Lancer le Node 2**
     ```bash
