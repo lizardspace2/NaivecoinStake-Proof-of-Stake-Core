@@ -248,12 +248,17 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
         console.log('DEBUG: signature type:', typeof signature);
         console.log('DEBUG: signature isArray:', Array.isArray(signature));
 
-        // Handle case where signature is an object (e.g. {0: x, 1: y})
+        // Handle case where signature is a wrapper object (e.g. { result, signature, signatureLength })
         if (typeof signature === 'object' && !Array.isArray(signature) && !(signature instanceof Uint8Array)) {
-            console.log('DEBUG: Signature is a plain object, converting to array values');
-            console.log('DEBUG: Signature keys:', _.keys(signature));
+            // Check if it has the 'signature' property as seen in logs
+            if ('signature' in signature) {
+                // @ts-ignore
+                return Buffer.from(signature.signature).toString('hex');
+            }
+
+            // Fallback for other object types (though unlikely now)
+            console.log('DEBUG: Unknown signature object structure:', _.keys(signature));
             const sigArray = _.values(signature);
-            console.log('DEBUG: Converted array length:', sigArray.length);
             return Buffer.from(sigArray as any).toString('hex');
         }
 
