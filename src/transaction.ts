@@ -234,9 +234,7 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
     try {
         const dilithium = getDilithiumSync();
         // Private key is stored as JSON string
-        // Private key is stored as JSON string
         const keyPair = JSON.parse(privateKey);
-        console.log('DEBUG: signTxIn privateKey isArray:', Array.isArray(keyPair.privateKey));
 
         const messageBuffer = Buffer.from(dataToSign, 'hex');
 
@@ -245,9 +243,6 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
         const messageUint8 = new Uint8Array(messageBuffer);
 
         const signature = dilithium.sign(messageUint8, privateKeyUint8, DILITHIUM_LEVEL);
-        console.log('DEBUG: signature type:', typeof signature);
-        console.log('DEBUG: signature isArray:', Array.isArray(signature));
-
         // Handle case where signature is a wrapper object (e.g. { result, signature, signatureLength })
         if (typeof signature === 'object' && !Array.isArray(signature) && !(signature instanceof Uint8Array)) {
             // Check if it has the 'signature' property as seen in logs
@@ -257,7 +252,6 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
             }
 
             // Fallback for other object types (though unlikely now)
-            console.log('DEBUG: Unknown signature object structure:', _.keys(signature));
             const sigArray = _.values(signature);
             return Buffer.from(sigArray as any).toString('hex');
         }
@@ -301,13 +295,6 @@ const getPublicKey = (aPrivateKey: string): string => {
     try {
         // Private key is stored as JSON string containing both keys
         const keyPair = JSON.parse(aPrivateKey);
-
-        console.log('DEBUG: publicKey type:', typeof keyPair.publicKey);
-        console.log('DEBUG: isArray:', Array.isArray(keyPair.publicKey));
-        if (!Array.isArray(keyPair.publicKey)) {
-            console.log('DEBUG: content snippet:', JSON.stringify(keyPair.publicKey).substring(0, 100));
-        }
-
         // Convert array back to Uint8Array and then to hex
         return Buffer.from(keyPair.publicKey).toString('hex');
     } catch (error) {
