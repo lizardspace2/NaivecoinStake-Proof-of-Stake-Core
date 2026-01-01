@@ -2,6 +2,7 @@ import * as CryptoJS from 'crypto-js';
 import * as _ from 'lodash';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { broadcastLatest, broadCastTransactionPool } from './p2p';
+import { getMerkleRoot } from './merkle';
 import {
     getCoinbaseTransaction, isValidAddress, processTransactions, Transaction, UnspentTxOut, getTxFee
 } from './transaction';
@@ -16,16 +17,18 @@ class Block {
     public previousHash: string;
     public timestamp: number;
     public data: Transaction[];
+    public merkleRoot: string;
     public difficulty: number;
     public minterBalance: number; // hack to avoid recaculating the balance of the minter at a precise height
     public minterAddress: string;
 
     constructor(index: number, hash: string, previousHash: string,
-        timestamp: number, data: Transaction[], difficulty: number, minterBalance: number, minterAddress: string) {
+        timestamp: number, data: Transaction[], merkleRoot: string, difficulty: number, minterBalance: number, minterAddress: string) {
         this.index = index;
         this.previousHash = previousHash;
         this.timestamp = timestamp;
         this.data = data;
+        this.merkleRoot = merkleRoot;
         this.hash = hash;
         this.difficulty = difficulty;
         this.minterBalance = minterBalance;
@@ -102,10 +105,11 @@ const initGenesisBlock = (): void => {
 
         // Calculate block hash
         const timestamp = 1465154705;
-        const hash = calculateHash(0, '', timestamp, [genesisTransaction], 0, 0, genesisAddress);
+        const genesisMerkleRoot = getMerkleRoot([genesisTransaction]);
+        const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, 0, 0, genesisAddress);
 
         genesisBlock = new Block(
-            0, hash, '', timestamp, [genesisTransaction], 0, 0, genesisAddress
+            0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, 0, 0, genesisAddress
         );
 
         blockchain = [genesisBlock];
@@ -235,12 +239,13 @@ const generatenextBlockWithTransaction = (receiverAddress: string, amount: numbe
 
 const findBlock = (index: number, previousHash: string, data: Transaction[], difficulty: number): Block => {
     let pastTimestamp: number = 0;
+    const merkleRoot = getMerkleRoot(data);
     while (true) {
         let timestamp: number = getCurrentTimestamp();
         if (pastTimestamp !== timestamp) {
-            let hash: string = calculateHash(index, previousHash, timestamp, data, difficulty, getAccountBalance(), getPublicFromWallet());
+            let hash: string = calculateHash(index, previousHash, timestamp, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
             if (isBlockStakingValid(previousHash, getPublicFromWallet(), timestamp, getAccountBalance(), difficulty, index)) {
-                return new Block(index, hash, previousHash, timestamp, data, difficulty, getAccountBalance(), getPublicFromWallet());
+                return new Block(index, hash, previousHash, timestamp, data, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
             }
             pastTimestamp = timestamp;
         }
@@ -259,11 +264,11 @@ const sendTransaction = (address: string, amount: number): Transaction => {
 };
 
 const calculateHashForBlock = (block: Block): string =>
-    calculateHash(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.minterBalance, block.minterAddress);
+    calculateHash(block.index, block.previousHash, block.timestamp, block.merkleRoot, block.difficulty, block.minterBalance, block.minterAddress);
 
-const calculateHash = (index: number, previousHash: string, timestamp: number, data: Transaction[],
+const calculateHash = (index: number, previousHash: string, timestamp: number, merkleRoot: string,
     difficulty: number, minterBalance: number, minterAddress: string): string =>
-    CryptoJS.SHA256(index + previousHash + timestamp + data + difficulty + minterBalance + minterAddress).toString();
+    CryptoJS.SHA256(index + previousHash + timestamp + merkleRoot + difficulty + minterBalance + minterAddress).toString();
 // The hash for Proof of Stake does not include a nonce to avoid more than one trial per second
 
 const isValidBlockStructure = (block: Block): boolean => {
@@ -272,6 +277,7 @@ const isValidBlockStructure = (block: Block): boolean => {
         && typeof block.previousHash === 'string'
         && typeof block.timestamp === 'number'
         && typeof block.data === 'object'
+        && typeof block.merkleRoot === 'string'
         && typeof block.difficulty === 'number'
         && typeof block.minterBalance === 'number'
         && typeof block.minterAddress === 'string';
@@ -292,6 +298,9 @@ const isValidNewBlock = (newBlock: Block, previousBlock: Block): boolean => {
         console.log('invalid timestamp');
         return false;
     } else if (!hasValidHash(newBlock)) {
+        return false;
+    } else if (getMerkleRoot(newBlock.data) !== newBlock.merkleRoot) {
+        console.log('invalid merkle root');
         return false;
     }
     return true;
