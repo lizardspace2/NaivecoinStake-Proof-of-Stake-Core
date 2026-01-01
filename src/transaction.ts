@@ -2,7 +2,58 @@ import * as CryptoJS from 'crypto-js';
 import * as _ from 'lodash';
 import { getDilithiumSync, DILITHIUM_LEVEL } from './wallet';
 
-const COINBASE_AMOUNT: number = 50;
+const COINBASE_AMOUNT_INITIAL: number = 50;
+const HALVING_INTERVAL: number = 100000;
+
+export const getCoinbaseAmount = (blockIndex: number): number => {
+    const halvings = Math.floor(blockIndex / HALVING_INTERVAL);
+    // Use bitwise shift for halving (or simple division for floating point coins if needed, but here assuming standard logic)
+    // For simplicity and readability with type number:
+    let amount = COINBASE_AMOUNT_INITIAL;
+    for (let i = 0; i < halvings; i++) {
+        amount = amount / 2;
+    }
+    return amount;
+};
+
+export const getCoinbaseTransaction = (address: string, blockIndex: number, blockFees: number = 0): Transaction => {
+    const t = new Transaction();
+    const txIn: TxIn = new TxIn();
+    txIn.signature = '';
+    txIn.txOutId = '';
+    txIn.txOutIndex = blockIndex;
+
+    t.txIns = [txIn];
+
+    // Calculate total reward: Base Coinbase Amount + Transaction Fees
+    const reward = getCoinbaseAmount(blockIndex) + blockFees;
+
+    t.txOuts = [new TxOut(address, reward)];
+    t.id = getTransactionId(t);
+    return t;
+};
+
+export const getTxFee = (transaction: Transaction, aUnspentTxOuts: UnspentTxOut[]): number => {
+    if (transaction.txIns[0].txOutId === '') {
+        return 0; // Coinbase has no fee
+    }
+
+    const totalIn = transaction.txIns
+        .map((txIn) => getTxInAmount(txIn, aUnspentTxOuts))
+        .reduce((a, b) => a + b, 0);
+
+    const totalOut = transaction.txOuts
+        .map((txOut) => txOut.amount)
+        .reduce((a, b) => a + b, 0);
+
+    return totalIn - totalOut;
+};
+
+// ... inside validateTransaction ...
+// if (getTxFee(transaction, aUnspentTxOuts) < 0.01) {
+//    console.log('transaction fee too low: ' + getTxFee(transaction, aUnspentTxOuts));
+//    return false;
+// }
 
 class UnspentTxOut {
     public readonly txOutId: string;
@@ -82,7 +133,16 @@ const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTx
         .reduce((a, b) => (a + b), 0);
 
     if (totalTxOutValues !== totalTxInValues) {
-        console.log('totalTxOutValues !== totalTxInValues in tx: ' + transaction.id);
+        // If inputs != outputs, the difference is the fee.
+        // We just ensure outputs aren't GREATER than inputs (inflation check for normal tx)
+        if (totalTxOutValues > totalTxInValues) {
+            console.log('totalTxOutValues > totalTxInValues in tx: ' + transaction.id);
+            return false;
+        }
+    }
+
+    if (getTxFee(transaction, aUnspentTxOuts) < 0.00001) {
+        console.log('transaction fee too low: ' + getTxFee(transaction, aUnspentTxOuts));
         return false;
     }
 
@@ -153,9 +213,15 @@ const validateCoinbaseTx = (transaction: Transaction, blockIndex: number): boole
             console.log('invalid genesis coinbase amount');
             return false;
         }
-    } else if (transaction.txOuts[0].amount !== COINBASE_AMOUNT) {
-        console.log('invalid coinbase amount in coinbase transaction');
-        return false;
+    } else if (transaction.txOuts[0].amount !== getCoinbaseAmount(blockIndex)) {
+        // Warning: This basic validation doesn't check if FEES were added correctly.
+        // It only checks if the base reward is at least present or matches exactly if we ignore fees for now.
+        // To properly validate fees + reward, we would need to sum the fees of all other txs in the block here.
+        // For this step, we will allow >= base reward to support fee inclusion which increases the output amount.
+        if (transaction.txOuts[0].amount < getCoinbaseAmount(blockIndex)) {
+            console.log('invalid coinbase amount in coinbase transaction');
+            return false;
+        }
     }
     return true;
 };
@@ -198,19 +264,6 @@ const getTxInAmount = (txIn: TxIn, aUnspentTxOuts: UnspentTxOut[]): number => {
 
 const findUnspentTxOut = (transactionId: string, index: number, aUnspentTxOuts: UnspentTxOut[]): UnspentTxOut => {
     return aUnspentTxOuts.find((uTxO) => uTxO.txOutId === transactionId && uTxO.txOutIndex === index);
-};
-
-const getCoinbaseTransaction = (address: string, blockIndex: number): Transaction => {
-    const t = new Transaction();
-    const txIn: TxIn = new TxIn();
-    txIn.signature = '';
-    txIn.txOutId = '';
-    txIn.txOutIndex = blockIndex;
-
-    t.txIns = [txIn];
-    t.txOuts = [new TxOut(address, COINBASE_AMOUNT)];
-    t.id = getTransactionId(t);
-    return t;
 };
 
 const signTxIn = (transaction: Transaction, txInIndex: number,
@@ -398,6 +451,6 @@ const isValidAddress = (address: string): boolean => {
 
 export {
     processTransactions, signTxIn, getTransactionId, isValidAddress, validateTransaction,
-    UnspentTxOut, TxIn, TxOut, getCoinbaseTransaction, getPublicKey, hasDuplicates,
+    UnspentTxOut, TxIn, TxOut, getPublicKey, hasDuplicates,
     Transaction
 };

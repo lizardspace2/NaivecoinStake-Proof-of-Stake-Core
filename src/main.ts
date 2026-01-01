@@ -137,12 +137,34 @@ const initHttpServer = (myHttpPort: number) => {
     });
 };
 
+const initAutoMining = () => {
+    // 60 seconds interval as requested
+    const interval = 60 * 1000;
+    console.log(`Starting auto-mining with ${interval}ms interval`);
+
+    setInterval(() => {
+        try {
+            // Only mine if we have a stake (balance > 0)
+            if (getAccountBalance() > 0) {
+                const newBlock = generateNextBlock();
+                if (newBlock) {
+                    console.log(`Auto-generation: Mined block ${newBlock.index}`);
+                }
+            }
+        } catch (e) {
+            console.log('Auto-mining error:', e.message);
+        }
+    }, interval);
+};
+
 // Initialize Dilithium first, then genesis block, wallet and servers
 initDilithium().then(() => {
     initGenesisBlock();
     initWallet();
     initHttpServer(httpPort);
     initP2PServer(p2pPort);
+    initAutoMining();
+
     // Public Bootnodes (Official Entry Points)
     const bootNodes = ['ws://34.66.32.62:6001'];
     let peers = bootNodes;

@@ -13,4 +13,6 @@ services:
       # PEERS is now optional (auto-connects to Public Bootnode)
       - PEERS=
       - PRIVATE_KEY=node/wallet/private_key
-    # No volumes mounted: this node will generate its own random wallet
+    volumes:
+      # Mount a separate data folder for the peer node to avoid conflict if on same VM
+      - ./node-peer/data:/app/data
