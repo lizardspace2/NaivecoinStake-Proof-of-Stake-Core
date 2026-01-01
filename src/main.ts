@@ -138,8 +138,8 @@ const initHttpServer = (myHttpPort: number) => {
 };
 
 const initAutoMining = () => {
-    // 60 seconds interval as requested
-    const interval = 60 * 1000;
+    // 1 second interval for non-blocking mining
+    const interval = 1000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
 
     setInterval(() => {

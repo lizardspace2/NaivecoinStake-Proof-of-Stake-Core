@@ -180,7 +180,7 @@ const generateRawNextBlock = (blockData: Transaction[]) => {
     const difficulty: number = getDifficulty(getBlockchain());
     const nextIndex: number = previousBlock.index + 1;
     const newBlock: Block = findBlock(nextIndex, previousBlock.hash, blockData, difficulty);
-    if (addBlockToChain(newBlock)) {
+    if (newBlock !== null && addBlockToChain(newBlock)) {
         broadcastLatest();
         return newBlock;
     } else {
@@ -238,18 +238,14 @@ const generatenextBlockWithTransaction = (receiverAddress: string, amount: numbe
 };
 
 const findBlock = (index: number, previousHash: string, data: Transaction[], difficulty: number): Block => {
-    let pastTimestamp: number = 0;
+    const timestamp: number = getCurrentTimestamp();
     const merkleRoot = getMerkleRoot(data);
-    while (true) {
-        let timestamp: number = getCurrentTimestamp();
-        if (pastTimestamp !== timestamp) {
-            let hash: string = calculateHash(index, previousHash, timestamp, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
-            if (isBlockStakingValid(previousHash, getPublicFromWallet(), timestamp, getAccountBalance(), difficulty, index)) {
-                return new Block(index, hash, previousHash, timestamp, data, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
-            }
-            pastTimestamp = timestamp;
-        }
+    const hash: string = calculateHash(index, previousHash, timestamp, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
+
+    if (isBlockStakingValid(previousHash, getPublicFromWallet(), timestamp, getAccountBalance(), difficulty, index)) {
+        return new Block(index, hash, previousHash, timestamp, data, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
     }
+    return null;
 };
 
 const getAccountBalance = (): number => {
