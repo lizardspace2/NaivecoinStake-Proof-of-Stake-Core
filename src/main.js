@@ -118,8 +118,8 @@ const initHttpServer = (myHttpPort) => {
     });
 };
 const initAutoMining = () => {
-    // 1 second interval for non-blocking mining
-    const interval = 1000;
+    // 30 seconds interval to reduce CPU load drastically
+    const interval = 30000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
     setInterval(() => {
         try {

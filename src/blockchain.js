@@ -125,7 +125,7 @@ const getBlockHeaders = (start, end) => {
 };
 exports.getBlockHeaders = getBlockHeaders;
 // in seconds
-const BLOCK_GENERATION_INTERVAL = 10;
+const BLOCK_GENERATION_INTERVAL = 300;
 // in blocks
 const DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
 const getDifficulty = (aBlockchain) => {

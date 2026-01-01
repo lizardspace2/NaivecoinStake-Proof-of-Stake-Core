@@ -156,7 +156,7 @@ const getBlockHeaders = (start: number, end: number): Block[] => {
 };
 
 // in seconds
-const BLOCK_GENERATION_INTERVAL: number = 10;
+const BLOCK_GENERATION_INTERVAL: number = 300;
 
 // in blocks
 const DIFFICULTY_ADJUSTMENT_INTERVAL: number = 10;
