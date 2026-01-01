@@ -14,5 +14,7 @@ services:
       - PEERS=
       - PRIVATE_KEY=node/wallet/private_key
     volumes:
-      # Mount a separate data folder for the peer node to avoid conflict if on same VM
-      - ./node-peer/data:/app/data
+      # Mount a separate data folder for the peer node to persist the wallet
+      - ./node-peer/data:/app/node/wallet
+      # Also mount the data folder for possible blockchain DB persistence if needed later
+      # - ./node-peer/db:/app/data
