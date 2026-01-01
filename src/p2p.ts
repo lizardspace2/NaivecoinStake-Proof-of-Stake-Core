@@ -1,11 +1,11 @@
 import * as WebSocket from 'ws';
-import {Server} from 'ws';
+import { Server } from 'ws';
 import {
     addBlockToChain, Block, getBlockchain, getLatestBlock, handleReceivedTransaction, isValidBlockStructure,
-    replaceChain
+    replaceChain, getBlockHeaders, isValidBlockHeader
 } from './blockchain';
-import {Transaction} from './transaction';
-import {getTransactionPool} from './transactionPool';
+import { Transaction } from './transaction';
+import { getTransactionPool } from './transactionPool';
 
 const sockets: WebSocket[] = [];
 
@@ -14,7 +14,11 @@ enum MessageType {
     QUERY_ALL = 1,
     RESPONSE_BLOCKCHAIN = 2,
     QUERY_TRANSACTION_POOL = 3,
-    RESPONSE_TRANSACTION_POOL = 4
+    RESPONSE_TRANSACTION_POOL = 4,
+    QUERY_HEADERS = 5,
+    RESPONSE_HEADERS = 6,
+    QUERY_BLOCK_DATA = 7,
+    RESPONSE_BLOCK_DATA = 8
 }
 
 class Message {
@@ -23,7 +27,7 @@ class Message {
 }
 
 const initP2PServer = (p2pPort: number) => {
-    const server: Server = new WebSocket.Server({port: p2pPort});
+    const server: Server = new WebSocket.Server({ port: p2pPort });
     server.on('connection', (ws: WebSocket) => {
         initConnection(ws);
     });
@@ -98,6 +102,17 @@ const initMessageHandler = (ws: WebSocket) => {
                         }
                     });
                     break;
+                case MessageType.QUERY_HEADERS:
+                    write(ws, responseHeadersMsg());
+                    break;
+                case MessageType.RESPONSE_HEADERS:
+                    const receivedHeaders: Block[] = JSONToObject<Block[]>(message.data);
+                    if (receivedHeaders === null) {
+                        console.log('invalid headers received: %s', JSON.stringify(message.data));
+                        break;
+                    }
+                    handleHeadersResponse(receivedHeaders);
+                    break;
             }
         } catch (e) {
             console.log(e);
@@ -108,9 +123,9 @@ const initMessageHandler = (ws: WebSocket) => {
 const write = (ws: WebSocket, message: Message): void => ws.send(JSON.stringify(message));
 const broadcast = (message: Message): void => sockets.forEach((socket) => write(socket, message));
 
-const queryChainLengthMsg = (): Message => ({'type': MessageType.QUERY_LATEST, 'data': null});
+const queryChainLengthMsg = (): Message => ({ 'type': MessageType.QUERY_LATEST, 'data': null });
 
-const queryAllMsg = (): Message => ({'type': MessageType.QUERY_ALL, 'data': null});
+const queryAllMsg = (): Message => ({ 'type': MessageType.QUERY_ALL, 'data': null });
 
 const responseChainMsg = (): Message => ({
     'type': MessageType.RESPONSE_BLOCKCHAIN, 'data': JSON.stringify(getBlockchain())
@@ -129,6 +144,12 @@ const queryTransactionPoolMsg = (): Message => ({
 const responseTransactionPoolMsg = (): Message => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
     'data': JSON.stringify(getTransactionPool())
+});
+
+const queryHeadersMsg = (): Message => ({ 'type': MessageType.QUERY_HEADERS, 'data': null });
+
+const responseHeadersMsg = (): Message => ({
+    'type': MessageType.RESPONSE_HEADERS, 'data': JSON.stringify(getBlockHeaders(0, getBlockchain().length))
 });
 
 const initErrorHandler = (ws: WebSocket) => {
@@ -160,13 +181,42 @@ const handleBlockchainResponse = (receivedBlocks: Block[]) => {
             }
         } else if (receivedBlocks.length === 1) {
             console.log('We have to query the chain from our peer');
-            broadcast(queryAllMsg());
+            broadcast(queryHeadersMsg());
         } else {
             console.log('Received blockchain is longer than current blockchain');
             replaceChain(receivedBlocks);
         }
     } else {
         console.log('received blockchain is not longer than received blockchain. Do nothing');
+    }
+};
+
+const handleHeadersResponse = (receivedHeaders: Block[]) => {
+    if (receivedHeaders.length === 0) {
+        console.log('received headers size of 0');
+        return;
+    }
+    console.log('Received headers. Count: ' + receivedHeaders.length);
+    const latestHeaderReceived = receivedHeaders[receivedHeaders.length - 1];
+    if (latestHeaderReceived.index > getLatestBlock().index) {
+        console.log('Headers chain is longer. Validating structure...');
+        // Validate header chain locally
+        let isValid = true;
+        for (let i = 0; i < receivedHeaders.length - 1; i++) {
+            if (!isValidBlockHeader(receivedHeaders[i + 1], receivedHeaders[i])) {
+                isValid = false;
+                break;
+            }
+        }
+        if (isValid) {
+            console.log('Headers chain valid. Requesting full chain data...');
+            // For this iteration, we fallback to requesting all data safely, 
+            // knowing the peer has a valid chain.
+            // Future improvement: Request blocks individually.
+            broadcast(queryAllMsg());
+        } else {
+            console.log('Invalid header chain received.');
+        }
     }
 };
 
@@ -188,4 +238,4 @@ const broadCastTransactionPool = () => {
     broadcast(responseTransactionPoolMsg());
 };
 
-export {connectToPeers, broadcastLatest, broadCastTransactionPool, initP2PServer, getSockets};
+export { connectToPeers, broadcastLatest, broadCastTransactionPool, initP2PServer, getSockets };

@@ -117,19 +117,45 @@ const initHttpServer = (myHttpPort) => {
         console.log('Listening http on port: ' + myHttpPort);
     });
 };
+const initAutoMining = () => {
+    // 1 second interval for non-blocking mining
+    const interval = 1000;
+    console.log(`Starting auto-mining with ${interval}ms interval`);
+    setInterval(() => {
+        try {
+            // Only mine if we have a stake (balance > 0)
+            if (blockchain_1.getAccountBalance() > 0) {
+                const newBlock = blockchain_1.generateNextBlock();
+                if (newBlock) {
+                    console.log(`Auto-generation: Mined block ${newBlock.index}`);
+                }
+            }
+        }
+        catch (e) {
+            console.log('Auto-mining error:', e.message);
+        }
+    }, interval);
+};
 // Initialize Dilithium first, then genesis block, wallet and servers
 wallet_1.initDilithium().then(() => {
     blockchain_1.initGenesisBlock();
     wallet_1.initWallet();
     initHttpServer(httpPort);
     p2p_1.initP2PServer(p2pPort);
+    initAutoMining();
+    // Public Bootnodes (Official Entry Points)
+    const bootNodes = ['ws://34.66.32.62:6001'];
+    let peers = bootNodes;
     if (process.env.PEERS) {
-        const peers = process.env.PEERS.split(',');
-        console.log('Connect to peers: ' + peers);
-        peers.forEach((peer) => {
-            p2p_1.connectToPeers(peer);
-        });
+        const customPeers = process.env.PEERS.split(',');
+        peers = [...peers, ...customPeers];
     }
+    // Remove duplicates
+    peers = [...new Set(peers)];
+    console.log('Connect to peers: ' + peers);
+    peers.forEach((peer) => {
+        p2p_1.connectToPeers(peer);
+    });
     console.log('Dilithium post-quantum cryptography initialized');
 }).catch((error) => {
     console.error('Failed to initialize Dilithium:', error);

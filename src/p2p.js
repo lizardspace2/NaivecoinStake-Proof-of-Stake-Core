@@ -11,6 +11,10 @@ var MessageType;
     MessageType[MessageType["RESPONSE_BLOCKCHAIN"] = 2] = "RESPONSE_BLOCKCHAIN";
     MessageType[MessageType["QUERY_TRANSACTION_POOL"] = 3] = "QUERY_TRANSACTION_POOL";
     MessageType[MessageType["RESPONSE_TRANSACTION_POOL"] = 4] = "RESPONSE_TRANSACTION_POOL";
+    MessageType[MessageType["QUERY_HEADERS"] = 5] = "QUERY_HEADERS";
+    MessageType[MessageType["RESPONSE_HEADERS"] = 6] = "RESPONSE_HEADERS";
+    MessageType[MessageType["QUERY_BLOCK_DATA"] = 7] = "QUERY_BLOCK_DATA";
+    MessageType[MessageType["RESPONSE_BLOCK_DATA"] = 8] = "RESPONSE_BLOCK_DATA";
 })(MessageType || (MessageType = {}));
 class Message {
 }
@@ -88,6 +92,17 @@ const initMessageHandler = (ws) => {
                         }
                     });
                     break;
+                case MessageType.QUERY_HEADERS:
+                    write(ws, responseHeadersMsg());
+                    break;
+                case MessageType.RESPONSE_HEADERS:
+                    const receivedHeaders = JSONToObject(message.data);
+                    if (receivedHeaders === null) {
+                        console.log('invalid headers received: %s', JSON.stringify(message.data));
+                        break;
+                    }
+                    handleHeadersResponse(receivedHeaders);
+                    break;
             }
         }
         catch (e) {
@@ -113,6 +128,10 @@ const queryTransactionPoolMsg = () => ({
 const responseTransactionPoolMsg = () => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
     'data': JSON.stringify(transactionPool_1.getTransactionPool())
+});
+const queryHeadersMsg = () => ({ 'type': MessageType.QUERY_HEADERS, 'data': null });
+const responseHeadersMsg = () => ({
+    'type': MessageType.RESPONSE_HEADERS, 'data': JSON.stringify(blockchain_1.getBlockHeaders(0, blockchain_1.getBlockchain().length))
 });
 const initErrorHandler = (ws) => {
     const closeConnection = (myWs) => {
@@ -143,7 +162,7 @@ const handleBlockchainResponse = (receivedBlocks) => {
         }
         else if (receivedBlocks.length === 1) {
             console.log('We have to query the chain from our peer');
-            broadcast(queryAllMsg());
+            broadcast(queryHeadersMsg());
         }
         else {
             console.log('Received blockchain is longer than current blockchain');
@@ -152,6 +171,35 @@ const handleBlockchainResponse = (receivedBlocks) => {
     }
     else {
         console.log('received blockchain is not longer than received blockchain. Do nothing');
+    }
+};
+const handleHeadersResponse = (receivedHeaders) => {
+    if (receivedHeaders.length === 0) {
+        console.log('received headers size of 0');
+        return;
+    }
+    console.log('Received headers. Count: ' + receivedHeaders.length);
+    const latestHeaderReceived = receivedHeaders[receivedHeaders.length - 1];
+    if (latestHeaderReceived.index > blockchain_1.getLatestBlock().index) {
+        console.log('Headers chain is longer. Validating structure...');
+        // Validate header chain locally
+        let isValid = true;
+        for (let i = 0; i < receivedHeaders.length - 1; i++) {
+            if (!blockchain_1.isValidBlockHeader(receivedHeaders[i + 1], receivedHeaders[i])) {
+                isValid = false;
+                break;
+            }
+        }
+        if (isValid) {
+            console.log('Headers chain valid. Requesting full chain data...');
+            // For this iteration, we fallback to requesting all data safely, 
+            // knowing the peer has a valid chain.
+            // Future improvement: Request blocks individually.
+            broadcast(queryAllMsg());
+        }
+        else {
+            console.log('Invalid header chain received.');
+        }
     }
 };
 const broadcastLatest = () => {

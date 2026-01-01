@@ -145,6 +145,15 @@ const setUnspentTxOuts = (newUnspentTxOut: UnspentTxOut[]) => {
 
 const getLatestBlock = (): Block => blockchain[blockchain.length - 1];
 
+const getBlockHeaders = (start: number, end: number): Block[] => {
+    return blockchain
+        .slice(start, end)
+        .map((block) => ({
+            ...block,
+            data: [] // Strip transactions for lightweight header
+        }));
+};
+
 // in seconds
 const BLOCK_GENERATION_INTERVAL: number = 10;
 
@@ -279,7 +288,7 @@ const isValidBlockStructure = (block: Block): boolean => {
         && typeof block.minterAddress === 'string';
 };
 
-const isValidNewBlock = (newBlock: Block, previousBlock: Block): boolean => {
+const isValidBlockHeader = (newBlock: Block, previousBlock: Block): boolean => {
     if (!isValidBlockStructure(newBlock)) {
         console.log('invalid block structure: %s', JSON.stringify(newBlock));
         return false;
@@ -295,7 +304,15 @@ const isValidNewBlock = (newBlock: Block, previousBlock: Block): boolean => {
         return false;
     } else if (!hasValidHash(newBlock)) {
         return false;
-    } else if (getMerkleRoot(newBlock.data) !== newBlock.merkleRoot) {
+    }
+    return true;
+};
+
+const isValidNewBlock = (newBlock: Block, previousBlock: Block): boolean => {
+    if (!isValidBlockHeader(newBlock, previousBlock)) {
+        return false;
+    }
+    if (getMerkleRoot(newBlock.data) !== newBlock.merkleRoot) {
         console.log('invalid merkle root');
         return false;
     }
@@ -444,5 +461,6 @@ export {
     Block, getBlockchain, getUnspentTxOuts, getLatestBlock, sendTransaction,
     generateRawNextBlock, generateNextBlock, generatenextBlockWithTransaction,
     handleReceivedTransaction, getMyUnspentTransactionOutputs,
-    getAccountBalance, isValidBlockStructure, replaceChain, addBlockToChain, initGenesisBlock
+    getAccountBalance, isValidBlockStructure, replaceChain, addBlockToChain, initGenesisBlock,
+    getBlockHeaders, isValidBlockHeader
 };
