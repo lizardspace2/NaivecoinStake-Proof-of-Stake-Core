@@ -85,37 +85,13 @@ sudo docker run hello-world
     cd NaivecoinStake-Proof-of-Stake-Core
     ```
 
-2.  **Créer la configuration de production**
-    Créez un fichier `docker-compose.prod.yml` pour définir une installation propre à un seul nœud :
-    ```bash
-    nano docker-compose.prod.yml
-    ```
-    Collez le contenu suivant :
-    ```yaml
-    version: '3'
-    services:
-      node:
-        build: .
-        container_name: naivecoin-node
-        restart: always
-        ports:
-          - "3001:3001"
-          - "6001:6001"
-        environment:
-          - HTTP_PORT=3001
-          - P2P_PORT=6001
-          - PEERS=
-          - PRIVATE_KEY=node/wallet/private_key
-        volumes:
-          # Monte le fichier local genesis_key.json vers l'emplacement attendu par le wallet
-          - ./genesis_key.json:/app/node/wallet/private_key
-    ```
-    (Sauvegardez avec `Ctrl+O`, `Entrée`, puis `Ctrl+X`)
+2.  **Configuration de production**
+    Le fichier `docker-compose.prod.yml` est déjà inclus dans le dépôt. Il définit une installation pour un seul nœud.
 
-    > [!TIP]
-    > **Rappel nano** : 
-    > *   Pour sauvegarder : Appuyez sur **Ctrl + O**, puis **Entrée**.
-    > *   Pour quitter : Appuyez sur **Ctrl + X**.
+    Vous pouvez vérifier son contenu :
+    ```bash
+    cat docker-compose.prod.yml
+    ```
 
 3.  **Configurer la Clé Genesis (Méthode recommandée : Importation)**
     Ne copiez-collez pas le texte, le fichier est trop gros et ferait planter le terminal. Utilisez l'outil d'importation.
