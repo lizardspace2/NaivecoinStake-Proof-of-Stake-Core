@@ -107,9 +107,9 @@ const findTxOutsForAmount = (amount: number, myUnspentTxOuts: UnspentTxOut[]) =>
     for (const myUnspentTxOut of myUnspentTxOuts) {
         includedUnspentTxOuts.push(myUnspentTxOut);
         currentAmount = currentAmount + myUnspentTxOut.amount;
-        // Require enough for amount + fee
-        if (currentAmount >= amount + 0.00001) {
-            const leftOverAmount = currentAmount - amount - 0.00001;
+        // Require enough for amount + safe fee (0.0001) to avoid floating point issues with minimum 0.00001
+        if (currentAmount >= amount + 0.0001) {
+            const leftOverAmount = currentAmount - amount - 0.0001;
             return { includedUnspentTxOuts, leftOverAmount };
         }
     }
