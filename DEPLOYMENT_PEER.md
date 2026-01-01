@@ -46,7 +46,7 @@ Le fichier `docker-compose-peer.yml` est pré-configuré pour :
 sudo docker compose -f docker-compose-peer.yml up -d --build
 ```
 
-> **Note** : Si vous n'utilisez pas de Bootnode codé en dur, vous devrez peut-être éditer `docker-compose-peer.yml` pour ajouter l'IP du Node 1 dans la variable `PEERS` : `PEERS=ws://IP_NODE_1:6001`.
+> **Note** : Le nœud se connecte automatiquement au Bootnode public. Vous n'avez pas besoin de modifier la configuration `PEERS` sauf si vous souhaitez vous connecter à un réseau privé spécifique.
 
 ## 4. Vérification
 

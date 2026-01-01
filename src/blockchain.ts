@@ -40,7 +40,7 @@ class Block {
 let genesisBlock: Block = null;
 
 // Number of blocks that can be minted with accounts without any coins
-const mintingWithoutCoinIndex = 100;
+const mintingWithoutCoinIndex = 1000000;
 
 const DATA_DIR = 'data';
 const BLOCKCHAIN_FILE = 'data/blockchain.json';
