@@ -91,10 +91,19 @@ const initHttpServer = (myHttpPort: number) => {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
+            if (address === undefined || amount === undefined) {
+                throw Error('invalid address or amount');
+            }
+            if (typeof amount !== 'number' || amount <= 0) {
+                throw Error('Amount must be a positive number');
+            }
+            if (typeof address !== 'string') {
+                throw Error('Address must be a string');
+            }
             const resp = generatenextBlockWithTransaction(address, amount);
             res.send(resp);
         } catch (e) {
-            console.log(e.message);
+            console.log('mintTransaction error: ' + e.message);
             res.status(400).send(e.message);
         }
     });
@@ -107,10 +116,16 @@ const initHttpServer = (myHttpPort: number) => {
             if (address === undefined || amount === undefined) {
                 throw Error('invalid address or amount');
             }
+            if (typeof amount !== 'number' || amount <= 0) {
+                throw Error('Amount must be a positive number');
+            }
+            if (typeof address !== 'string') {
+                throw Error('Address must be a string');
+            }
             const resp = sendTransaction(address, amount);
             res.send(resp);
         } catch (e) {
-            console.log(e.message);
+            console.log('sendTransaction error: ' + e.message);
             res.status(400).send(e.message);
         }
     });

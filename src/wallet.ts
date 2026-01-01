@@ -114,8 +114,8 @@ const findTxOutsForAmount = (amount: number, myUnspentTxOuts: UnspentTxOut[]) =>
         }
     }
 
-    const eMsg = 'Cannot create transaction from the available unspent transaction outputs.' +
-        ' Required amount:' + amount + '. Available unspentTxOuts:' + JSON.stringify(myUnspentTxOuts);
+    const totalAvailable = myUnspentTxOuts.map(u => u.amount).reduce((a, b) => a + b, 0);
+    const eMsg = `Insufficient funds: Required ${amount}, Available ${totalAvailable}`;
     throw Error(eMsg);
 };
 
