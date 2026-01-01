@@ -327,11 +327,11 @@ const isValidNewBlock = (newBlock: Block, previousBlock: Block): boolean => {
     return true;
 };
 
-const getAccumulatedDifficulty = (aBlockchain: Block[]): number => {
+const getAccumulatedDifficulty = (aBlockchain: Block[]): BigNumber => {
     return aBlockchain
         .map((block) => block.difficulty)
-        .map((difficulty) => Math.pow(2, difficulty))
-        .reduce((a, b) => a + b);
+        .map((difficulty) => new BigNumber(2).exponentiatedBy(difficulty))
+        .reduce((a, b) => a.plus(b), new BigNumber(0));
 };
 
 const isValidTimestamp = (newBlock: Block, previousBlock: Block): boolean => {
@@ -453,7 +453,7 @@ const replaceChain = (newBlocks: Block[]) => {
     const aUnspentTxOuts = isValidChain(newBlocks);
     const validChain: boolean = aUnspentTxOuts !== null;
     if (validChain &&
-        getAccumulatedDifficulty(newBlocks) > getAccumulatedDifficulty(getBlockchain())) {
+        getAccumulatedDifficulty(newBlocks).gt(getAccumulatedDifficulty(getBlockchain()))) {
         console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
         blockchain = newBlocks;
         setUnspentTxOuts(aUnspentTxOuts);
@@ -463,8 +463,8 @@ const replaceChain = (newBlocks: Block[]) => {
     } else {
         console.log('Received blockchain invalid');
         console.log('Valid Chain: ' + validChain);
-        console.log('New Difficulty: ' + getAccumulatedDifficulty(newBlocks));
-        console.log('Current Difficulty: ' + getAccumulatedDifficulty(getBlockchain()));
+        console.log('New Difficulty: ' + getAccumulatedDifficulty(newBlocks).toFixed());
+        console.log('Current Difficulty: ' + getAccumulatedDifficulty(getBlockchain()).toFixed());
     }
 };
 
