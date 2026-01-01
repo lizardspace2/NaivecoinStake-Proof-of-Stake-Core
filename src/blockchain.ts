@@ -405,6 +405,9 @@ const isValidChain = (blockchainToValidate: Block[]): UnspentTxOut[] => {
     };
 
     if (!isValidGenesis(blockchainToValidate[0])) {
+        console.log('isValidChain: Genesis block validation failed');
+        console.log('Expected: Index 0, PrevHash "", Date length 1, 1 TxIn/TxOut, Amount 100000000');
+        console.log('Received: ' + JSON.stringify(blockchainToValidate[0]));
         return null;
     }
     /*
@@ -416,12 +419,13 @@ const isValidChain = (blockchainToValidate: Block[]): UnspentTxOut[] => {
     for (let i = 0; i < blockchainToValidate.length; i++) {
         const currentBlock: Block = blockchainToValidate[i];
         if (i !== 0 && !isValidNewBlock(blockchainToValidate[i], blockchainToValidate[i - 1])) {
+            console.log('isValidChain: Block ' + i + ' is invalid compared to block ' + (i - 1));
             return null;
         }
 
         aUnspentTxOuts = processTransactions(currentBlock.data, aUnspentTxOuts, currentBlock.index);
         if (aUnspentTxOuts === null) {
-            console.log('invalid transactions in blockchain');
+            console.log('isValidChain: invalid transactions in blockchain at block index: ' + i);
             return null;
         }
     }
@@ -458,6 +462,9 @@ const replaceChain = (newBlocks: Block[]) => {
         broadcastLatest();
     } else {
         console.log('Received blockchain invalid');
+        console.log('Valid Chain: ' + validChain);
+        console.log('New Difficulty: ' + getAccumulatedDifficulty(newBlocks));
+        console.log('Current Difficulty: ' + getAccumulatedDifficulty(getBlockchain()));
     }
 };
 

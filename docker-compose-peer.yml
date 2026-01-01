@@ -11,7 +11,7 @@ services:
       - HTTP_PORT=3001
       - P2P_PORT=6001
       # PEERS is now optional (auto-connects to Public Bootnode)
-      - PEERS=
+      - PEERS=ws://34.66.32.62:6001
       - PRIVATE_KEY=node/wallet/private_key
     volumes:
       # Mount a separate data folder for the peer node to persist the wallet

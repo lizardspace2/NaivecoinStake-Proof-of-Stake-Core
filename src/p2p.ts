@@ -80,6 +80,10 @@ const initMessageHandler = (ws: WebSocket) => {
                         console.log('invalid blocks received: %s', JSON.stringify(message.data));
                         break;
                     }
+                    console.log('Received blockchain response. Count: ' + receivedBlocks.length);
+                    if (receivedBlocks.length > 0) {
+                        console.log('Range: ' + receivedBlocks[0].index + ' -> ' + receivedBlocks[receivedBlocks.length - 1].index);
+                    }
                     handleBlockchainResponse(receivedBlocks);
                     break;
                 case MessageType.QUERY_TRANSACTION_POOL:
