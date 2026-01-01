@@ -82,8 +82,9 @@ const initGenesisBlock = () => {
         // Calculate block hash
         const timestamp = 1465154705;
         const genesisMerkleRoot = merkle_1.getMerkleRoot([genesisTransaction]);
-        const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, 0, 0, genesisAddress);
-        genesisBlock = new Block(0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, 0, 0, genesisAddress);
+        const genesisDifficulty = 100000000;
+        const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, genesisDifficulty, 0, genesisAddress);
+        genesisBlock = new Block(0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, genesisDifficulty, 0, genesisAddress);
         blockchain = [genesisBlock];
         unspentTxOuts = transaction_1.processTransactions(blockchain[0].data, [], 0);
         console.log('Genesis block initialized with Dilithium address');
@@ -140,15 +141,18 @@ const getAdjustedDifficulty = (latestBlock, aBlockchain) => {
     const prevAdjustmentBlock = aBlockchain[blockchain.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
     const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
     const timeTaken = latestBlock.timestamp - prevAdjustmentBlock.timestamp;
-    if (timeTaken < timeExpected / 2) {
-        return prevAdjustmentBlock.difficulty + 1;
+    if (timeTaken < 1) {
+        return prevAdjustmentBlock.difficulty * 4;
     }
-    else if (timeTaken > timeExpected * 2) {
-        return prevAdjustmentBlock.difficulty - 1;
+    const multiplier = timeExpected / timeTaken;
+    let adjustedDifficulty = prevAdjustmentBlock.difficulty * multiplier;
+    if (adjustedDifficulty > prevAdjustmentBlock.difficulty * 4) {
+        adjustedDifficulty = prevAdjustmentBlock.difficulty * 4;
     }
-    else {
-        return prevAdjustmentBlock.difficulty;
+    else if (adjustedDifficulty < prevAdjustmentBlock.difficulty / 4) {
+        adjustedDifficulty = prevAdjustmentBlock.difficulty / 4;
     }
+    return Math.max(Math.floor(adjustedDifficulty), 1);
 };
 const getCurrentTimestamp = () => Math.round(new Date().getTime() / 1000);
 const generateRawNextBlock = (blockData) => {

@@ -106,10 +106,11 @@ const initGenesisBlock = (): void => {
         // Calculate block hash
         const timestamp = 1465154705;
         const genesisMerkleRoot = getMerkleRoot([genesisTransaction]);
-        const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, 0, 0, genesisAddress);
+        const genesisDifficulty = 100000000;
+        const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, genesisDifficulty, 0, genesisAddress);
 
         genesisBlock = new Block(
-            0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, 0, 0, genesisAddress
+            0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, genesisDifficulty, 0, genesisAddress
         );
 
         blockchain = [genesisBlock];
@@ -173,13 +174,20 @@ const getAdjustedDifficulty = (latestBlock: Block, aBlockchain: Block[]) => {
     const prevAdjustmentBlock: Block = aBlockchain[blockchain.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
     const timeExpected: number = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
     const timeTaken: number = latestBlock.timestamp - prevAdjustmentBlock.timestamp;
-    if (timeTaken < timeExpected / 2) {
-        return prevAdjustmentBlock.difficulty + 1;
-    } else if (timeTaken > timeExpected * 2) {
-        return prevAdjustmentBlock.difficulty - 1;
-    } else {
-        return prevAdjustmentBlock.difficulty;
+
+    if (timeTaken < 1) {
+        return prevAdjustmentBlock.difficulty * 4;
     }
+    const multiplier = timeExpected / timeTaken;
+    let adjustedDifficulty = prevAdjustmentBlock.difficulty * multiplier;
+
+    if (adjustedDifficulty > prevAdjustmentBlock.difficulty * 4) {
+        adjustedDifficulty = prevAdjustmentBlock.difficulty * 4;
+    } else if (adjustedDifficulty < prevAdjustmentBlock.difficulty / 4) {
+        adjustedDifficulty = prevAdjustmentBlock.difficulty / 4;
+    }
+
+    return Math.max(Math.floor(adjustedDifficulty), 1);
 };
 
 const getCurrentTimestamp = (): number => Math.round(new Date().getTime() / 1000);
