@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const CryptoJS = require("crypto-js");
 const _ = require("lodash");
 const wallet_1 = require("./wallet");
+const validation_errors_1 = require("./validation_errors");
 const COINBASE_AMOUNT_INITIAL = 50;
 const HALVING_INTERVAL = 100000;
 exports.getCoinbaseAmount = (blockIndex) => {
@@ -79,18 +80,16 @@ const getTransactionId = (transaction) => {
 exports.getTransactionId = getTransactionId;
 const validateTransaction = (transaction, aUnspentTxOuts) => {
     if (!isValidTransactionStructure(transaction)) {
-        return false;
+        throw new validation_errors_1.ValidationError('invalid transaction structure: ' + JSON.stringify(transaction), validation_errors_1.ValidationErrorCode.INVALID_STRUCTURE, true);
     }
     if (getTransactionId(transaction) !== transaction.id) {
-        console.log('invalid tx id: ' + transaction.id);
-        return false;
+        throw new validation_errors_1.ValidationError('invalid tx id: ' + transaction.id, validation_errors_1.ValidationErrorCode.INVALID_STRUCTURE, true);
     }
     const hasValidTxIns = transaction.txIns
         .map((txIn) => validateTxIn(txIn, transaction, aUnspentTxOuts))
         .reduce((a, b) => a && b, true);
     if (!hasValidTxIns) {
-        console.log('some of the txIns are invalid in tx: ' + transaction.id);
-        return false;
+        throw new validation_errors_1.ValidationError('some of the txIns are invalid in tx: ' + transaction.id, validation_errors_1.ValidationErrorCode.INVALID_SIGNATURE, true);
     }
     const totalTxInValues = transaction.txIns
         .map((txIn) => getTxInAmount(txIn, aUnspentTxOuts))
@@ -102,13 +101,11 @@ const validateTransaction = (transaction, aUnspentTxOuts) => {
         // If inputs != outputs, the difference is the fee.
         // We just ensure outputs aren't GREATER than inputs (inflation check for normal tx)
         if (totalTxOutValues > totalTxInValues) {
-            console.log('totalTxOutValues > totalTxInValues in tx: ' + transaction.id);
-            return false;
+            throw new validation_errors_1.ValidationError('totalTxOutValues > totalTxInValues in tx: ' + transaction.id, validation_errors_1.ValidationErrorCode.INSUFFICIENT_FUNDS, true);
         }
     }
     if (exports.getTxFee(transaction, aUnspentTxOuts) < 0.00001) {
-        console.log('transaction fee too low: ' + exports.getTxFee(transaction, aUnspentTxOuts));
-        return false;
+        throw new validation_errors_1.ValidationError('transaction fee too low: ' + exports.getTxFee(transaction, aUnspentTxOuts), validation_errors_1.ValidationErrorCode.INVALID_FEE, false);
     }
     return true;
 };
@@ -116,8 +113,7 @@ exports.validateTransaction = validateTransaction;
 const validateBlockTransactions = (aTransactions, aUnspentTxOuts, blockIndex) => {
     const coinbaseTx = aTransactions[0];
     if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
-        console.log('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx));
-        return false;
+        throw new validation_errors_1.ValidationError('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx), validation_errors_1.ValidationErrorCode.INVALID_COINBASE, true);
     }
     // check for duplicate txIns. Each txIn can be included only once
     const txIns = _(aTransactions)
@@ -125,13 +121,17 @@ const validateBlockTransactions = (aTransactions, aUnspentTxOuts, blockIndex) =>
         .flatten()
         .value();
     if (hasDuplicates(txIns)) {
-        return false;
+        throw new validation_errors_1.ValidationError('duplicate txIns found in block transactions', validation_errors_1.ValidationErrorCode.DUPLICATE_TX, true);
     }
     // all but coinbase transactions
     const normalTransactions = aTransactions.slice(1);
-    return normalTransactions.map((tx) => validateTransaction(tx, aUnspentTxOuts))
-        .reduce((a, b) => (a && b), true);
+    // Explicitly check each transaction instead of reduce, so we can throw
+    for (const tx of normalTransactions) {
+        validateTransaction(tx, aUnspentTxOuts);
+    }
+    return true;
 };
+exports.validateBlockTransactions = validateBlockTransactions;
 const hasDuplicates = (txIns) => {
     const groups = _.countBy(txIns, (txIn) => txIn.txOutId + txIn.txOutIndex);
     return _(groups)
@@ -189,8 +189,9 @@ const validateCoinbaseTx = (transaction, blockIndex) => {
 const validateTxIn = (txIn, transaction, aUnspentTxOuts) => {
     const referencedUTxOut = aUnspentTxOuts.find((uTxO) => uTxO.txOutId === txIn.txOutId && uTxO.txOutIndex === txIn.txOutIndex);
     if (referencedUTxOut == null) {
-        console.log('referenced txOut not found: ' + JSON.stringify(txIn));
-        return false;
+        // Warning: This could happen if the node is not fully synced yet, so maybe we shouldn't ban immediately?
+        // But for a valid block, all inputs MUST be resolvable.
+        throw new validation_errors_1.ValidationError('referenced txOut not found: ' + JSON.stringify(txIn), validation_errors_1.ValidationErrorCode.INSUFFICIENT_FUNDS, true);
     }
     const address = referencedUTxOut.address;
     try {
@@ -205,7 +206,7 @@ const validateTxIn = (txIn, transaction, aUnspentTxOuts) => {
         const validSignature = dilithium.verify(signature, message, publicKey, wallet_1.DILITHIUM_LEVEL);
         if (!validSignature) {
             console.log('invalid txIn signature: %s txId: %s address: %s', txIn.signature, transaction.id, referencedUTxOut.address);
-            return false;
+            throw new validation_errors_1.ValidationError(`invalid txIn signature: ${txIn.signature} txId: ${transaction.id} address: ${referencedUTxOut.address}`, validation_errors_1.ValidationErrorCode.INVALID_SIGNATURE, true);
         }
         return true;
     }

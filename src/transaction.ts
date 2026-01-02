@@ -1,6 +1,7 @@
 import * as CryptoJS from 'crypto-js';
 import * as _ from 'lodash';
 import { getDilithiumSync, DILITHIUM_LEVEL } from './wallet';
+import { ValidationError, ValidationErrorCode } from './validation_errors';
 
 const COINBASE_AMOUNT_INITIAL: number = 50;
 const HALVING_INTERVAL: number = 100000;
@@ -108,20 +109,18 @@ const getTransactionId = (transaction: Transaction): string => {
 const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTxOut[]): boolean => {
 
     if (!isValidTransactionStructure(transaction)) {
-        return false;
+        throw new ValidationError('invalid transaction structure: ' + JSON.stringify(transaction), ValidationErrorCode.INVALID_STRUCTURE, true);
     }
 
     if (getTransactionId(transaction) !== transaction.id) {
-        console.log('invalid tx id: ' + transaction.id);
-        return false;
+        throw new ValidationError('invalid tx id: ' + transaction.id, ValidationErrorCode.INVALID_STRUCTURE, true);
     }
     const hasValidTxIns: boolean = transaction.txIns
         .map((txIn) => validateTxIn(txIn, transaction, aUnspentTxOuts))
         .reduce((a, b) => a && b, true);
 
     if (!hasValidTxIns) {
-        console.log('some of the txIns are invalid in tx: ' + transaction.id);
-        return false;
+        throw new ValidationError('some of the txIns are invalid in tx: ' + transaction.id, ValidationErrorCode.INVALID_SIGNATURE, true);
     }
 
     const totalTxInValues: number = transaction.txIns
@@ -136,14 +135,12 @@ const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTx
         // If inputs != outputs, the difference is the fee.
         // We just ensure outputs aren't GREATER than inputs (inflation check for normal tx)
         if (totalTxOutValues > totalTxInValues) {
-            console.log('totalTxOutValues > totalTxInValues in tx: ' + transaction.id);
-            return false;
+            throw new ValidationError('totalTxOutValues > totalTxInValues in tx: ' + transaction.id, ValidationErrorCode.INSUFFICIENT_FUNDS, true);
         }
     }
 
     if (getTxFee(transaction, aUnspentTxOuts) < 0.00001) {
-        console.log('transaction fee too low: ' + getTxFee(transaction, aUnspentTxOuts));
-        return false;
+        throw new ValidationError('transaction fee too low: ' + getTxFee(transaction, aUnspentTxOuts), ValidationErrorCode.INVALID_FEE, false);
     }
 
     return true;
@@ -152,8 +149,7 @@ const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTx
 const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[], blockIndex: number): boolean => {
     const coinbaseTx = aTransactions[0];
     if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
-        console.log('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx));
-        return false;
+        throw new ValidationError('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx), ValidationErrorCode.INVALID_COINBASE, true);
     }
 
     // check for duplicate txIns. Each txIn can be included only once
@@ -163,13 +159,16 @@ const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts:
         .value();
 
     if (hasDuplicates(txIns)) {
-        return false;
+        throw new ValidationError('duplicate txIns found in block transactions', ValidationErrorCode.DUPLICATE_TX, true);
     }
 
     // all but coinbase transactions
     const normalTransactions: Transaction[] = aTransactions.slice(1);
-    return normalTransactions.map((tx) => validateTransaction(tx, aUnspentTxOuts))
-        .reduce((a, b) => (a && b), true);
+    // Explicitly check each transaction instead of reduce, so we can throw
+    for (const tx of normalTransactions) {
+        validateTransaction(tx, aUnspentTxOuts);
+    }
+    return true;
 
 };
 
@@ -230,8 +229,9 @@ const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: Unsp
     const referencedUTxOut: UnspentTxOut =
         aUnspentTxOuts.find((uTxO) => uTxO.txOutId === txIn.txOutId && uTxO.txOutIndex === txIn.txOutIndex);
     if (referencedUTxOut == null) {
-        console.log('referenced txOut not found: ' + JSON.stringify(txIn));
-        return false;
+        // Warning: This could happen if the node is not fully synced yet, so maybe we shouldn't ban immediately?
+        // But for a valid block, all inputs MUST be resolvable.
+        throw new ValidationError('referenced txOut not found: ' + JSON.stringify(txIn), ValidationErrorCode.INSUFFICIENT_FUNDS, true);
     }
     const address = referencedUTxOut.address;
 
@@ -249,7 +249,7 @@ const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: Unsp
         const validSignature: boolean = dilithium.verify(signature, message, publicKey, DILITHIUM_LEVEL);
         if (!validSignature) {
             console.log('invalid txIn signature: %s txId: %s address: %s', txIn.signature, transaction.id, referencedUTxOut.address);
-            return false;
+            throw new ValidationError(`invalid txIn signature: ${txIn.signature} txId: ${transaction.id} address: ${referencedUTxOut.address}`, ValidationErrorCode.INVALID_SIGNATURE, true);
         }
         return true;
     } catch (error) {
@@ -452,5 +452,5 @@ const isValidAddress = (address: string): boolean => {
 export {
     processTransactions, signTxIn, getTransactionId, isValidAddress, validateTransaction,
     UnspentTxOut, TxIn, TxOut, getPublicKey, hasDuplicates,
-    Transaction
+    Transaction, validateBlockTransactions
 };

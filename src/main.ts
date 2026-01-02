@@ -55,12 +55,12 @@ const initHttpServer = (myHttpPort: number) => {
         res.send(getMyUnspentTransactionOutputs());
     });
 
-    app.post('/mintRawBlock', (req, res) => {
+    app.post('/mintRawBlock', async (req, res) => {
         if (req.body.data == null) {
             res.send('data parameter is missing');
             return;
         }
-        const newBlock: Block = generateRawNextBlock(req.body.data);
+        const newBlock: Block = await generateRawNextBlock(req.body.data);
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         } else {
@@ -68,8 +68,8 @@ const initHttpServer = (myHttpPort: number) => {
         }
     });
 
-    app.post('/mintBlock', (req, res) => {
-        const newBlock: Block = generateNextBlock();
+    app.post('/mintBlock', async (req, res) => {
+        const newBlock: Block = await generateNextBlock();
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         } else {
@@ -87,7 +87,7 @@ const initHttpServer = (myHttpPort: number) => {
         res.send({ 'address': address });
     });
 
-    app.post('/mintTransaction', (req, res) => {
+    app.post('/mintTransaction', async (req, res) => {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
@@ -100,7 +100,7 @@ const initHttpServer = (myHttpPort: number) => {
             if (typeof address !== 'string') {
                 throw Error('Address must be a string');
             }
-            const resp = generatenextBlockWithTransaction(address, amount);
+            const resp = await generatenextBlockWithTransaction(address, amount);
             res.send(resp);
         } catch (e) {
             console.log('mintTransaction error: ' + e.message);
@@ -157,11 +157,11 @@ const initAutoMining = () => {
     const interval = 30000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
 
-    setInterval(() => {
+    setInterval(async () => {
         try {
             // Only mine if we have a stake (balance > 0)
             if (getAccountBalance() > 0) {
-                const newBlock = generateNextBlock();
+                const newBlock = await generateNextBlock();
                 if (newBlock) {
                     console.log(`Auto-generation: Mined block ${newBlock.index}`);
                 }

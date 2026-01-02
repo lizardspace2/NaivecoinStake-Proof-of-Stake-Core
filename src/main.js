@@ -1,4 +1,12 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const bodyParser = require("body-parser");
 const express = require("express");
@@ -42,28 +50,28 @@ const initHttpServer = (myHttpPort) => {
     app.get('/myUnspentTransactionOutputs', (req, res) => {
         res.send(blockchain_1.getMyUnspentTransactionOutputs());
     });
-    app.post('/mintRawBlock', (req, res) => {
+    app.post('/mintRawBlock', (req, res) => __awaiter(this, void 0, void 0, function* () {
         if (req.body.data == null) {
             res.send('data parameter is missing');
             return;
         }
-        const newBlock = blockchain_1.generateRawNextBlock(req.body.data);
+        const newBlock = yield blockchain_1.generateRawNextBlock(req.body.data);
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         }
         else {
             res.send(newBlock);
         }
-    });
-    app.post('/mintBlock', (req, res) => {
-        const newBlock = blockchain_1.generateNextBlock();
+    }));
+    app.post('/mintBlock', (req, res) => __awaiter(this, void 0, void 0, function* () {
+        const newBlock = yield blockchain_1.generateNextBlock();
         if (newBlock === null) {
             res.status(400).send('could not generate block');
         }
         else {
             res.send(newBlock);
         }
-    });
+    }));
     app.get('/balance', (req, res) => {
         const balance = blockchain_1.getAccountBalance();
         res.send({ 'balance': balance });
@@ -72,18 +80,27 @@ const initHttpServer = (myHttpPort) => {
         const address = wallet_1.getPublicFromWallet();
         res.send({ 'address': address });
     });
-    app.post('/mintTransaction', (req, res) => {
+    app.post('/mintTransaction', (req, res) => __awaiter(this, void 0, void 0, function* () {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
-            const resp = blockchain_1.generatenextBlockWithTransaction(address, amount);
+            if (address === undefined || amount === undefined) {
+                throw Error('invalid address or amount');
+            }
+            if (typeof amount !== 'number' || amount <= 0) {
+                throw Error('Amount must be a positive number');
+            }
+            if (typeof address !== 'string') {
+                throw Error('Address must be a string');
+            }
+            const resp = yield blockchain_1.generatenextBlockWithTransaction(address, amount);
             res.send(resp);
         }
         catch (e) {
-            console.log(e.message);
+            console.log('mintTransaction error: ' + e.message);
             res.status(400).send(e.message);
         }
-    });
+    }));
     app.post('/sendTransaction', (req, res) => {
         try {
             const address = req.body.address;
@@ -91,11 +108,17 @@ const initHttpServer = (myHttpPort) => {
             if (address === undefined || amount === undefined) {
                 throw Error('invalid address or amount');
             }
+            if (typeof amount !== 'number' || amount <= 0) {
+                throw Error('Amount must be a positive number');
+            }
+            if (typeof address !== 'string') {
+                throw Error('Address must be a string');
+            }
             const resp = blockchain_1.sendTransaction(address, amount);
             res.send(resp);
         }
         catch (e) {
-            console.log(e.message);
+            console.log('sendTransaction error: ' + e.message);
             res.status(400).send(e.message);
         }
     });
@@ -121,11 +144,11 @@ const initAutoMining = () => {
     // 30 seconds interval to reduce CPU load drastically
     const interval = 30000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
-    setInterval(() => {
+    setInterval(() => __awaiter(this, void 0, void 0, function* () {
         try {
             // Only mine if we have a stake (balance > 0)
             if (blockchain_1.getAccountBalance() > 0) {
-                const newBlock = blockchain_1.generateNextBlock();
+                const newBlock = yield blockchain_1.generateNextBlock();
                 if (newBlock) {
                     console.log(`Auto-generation: Mined block ${newBlock.index}`);
                 }
@@ -134,7 +157,7 @@ const initAutoMining = () => {
         catch (e) {
             console.log('Auto-mining error:', e.message);
         }
-    }, interval);
+    }), interval);
 };
 // Initialize Dilithium first, then genesis block, wallet and servers
 wallet_1.initDilithium().then(() => {

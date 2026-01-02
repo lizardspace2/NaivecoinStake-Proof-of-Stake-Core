@@ -6,9 +6,13 @@ import { getMerkleRoot } from './merkle';
 import {
     getCoinbaseTransaction, isValidAddress, processTransactions, Transaction, UnspentTxOut, getTxFee
 } from './transaction';
-import { addToTransactionPool, getTransactionPool, updateTransactionPool } from './transactionPool';
+import { addToTransactionPool, getTransactionPool, updateTransactionPool, getCandidateTransactions } from './transactionPool';
 import { createTransaction, findUnspentTxOuts, getBalance, getPrivateFromWallet, getPublicFromWallet, getDilithiumSync, DILITHIUM_LEVEL } from './wallet';
 import { BigNumber } from 'bignumber.js';
+import { yieldToEventLoop } from './utils_async';
+import { ValidationError, ValidationErrorCode } from './validation_errors';
+import { State } from './state';
+import { BlockExecutor } from './execution';
 
 class Block {
 
@@ -21,9 +25,10 @@ class Block {
     public difficulty: number;
     public minterBalance: number; // hack to avoid recaculating the balance of the minter at a precise height
     public minterAddress: string;
+    public stateRoot: string; // New: State Root for determinism
 
     constructor(index: number, hash: string, previousHash: string,
-        timestamp: number, data: Transaction[], merkleRoot: string, difficulty: number, minterBalance: number, minterAddress: string) {
+        timestamp: number, data: Transaction[], merkleRoot: string, difficulty: number, minterBalance: number, minterAddress: string, stateRoot: string = '') {
         this.index = index;
         this.previousHash = previousHash;
         this.timestamp = timestamp;
@@ -33,6 +38,7 @@ class Block {
         this.difficulty = difficulty;
         this.minterBalance = minterBalance;
         this.minterAddress = minterAddress;
+        this.stateRoot = stateRoot;
     }
 }
 
@@ -48,7 +54,13 @@ const BLOCKCHAIN_FILE = 'data/blockchain.json';
 let blockchain: Block[] = [];
 
 // the unspent txOut of genesis block is set to unspentTxOuts on startup
-let unspentTxOuts: UnspentTxOut[] = [];
+// GLOBAL STATE: Replaced by State object, but keeping global for now as singleton wrapper
+let globalState: State = new State();
+let unspentTxOuts: UnspentTxOut[] = []; // Kept for backward compatibility references, but should sync with globalState
+
+// Cache big number constant
+const TWO_POW_256 = new BigNumber(2).exponentiatedBy(256);
+
 
 // Initialize genesis block with Dilithium address
 const initGenesisBlock = (): void => {
@@ -72,6 +84,7 @@ const initGenesisBlock = (): void => {
 
             blockchain = loadedChain;
             unspentTxOuts = tempUnspentTxOuts;
+            globalState = new State(unspentTxOuts); // Initialize State
             genesisBlock = blockchain[0];
             console.log('Blockchain loaded successfully. Height: ' + getLatestBlock().index);
             return;
@@ -107,10 +120,14 @@ const initGenesisBlock = (): void => {
         const timestamp = 1465154705;
         const genesisMerkleRoot = getMerkleRoot([genesisTransaction]);
         const genesisDifficulty = 100000000;
+        // genesis state calculation
+        const genesisState = new State(processTransactions([genesisTransaction], [], 0));
+        const genesisStateRoot = genesisState.getRoot();
+
         const hash = calculateHash(0, '', timestamp, genesisMerkleRoot, genesisDifficulty, 0, genesisAddress);
 
         genesisBlock = new Block(
-            0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, genesisDifficulty, 0, genesisAddress
+            0, hash, '', timestamp, [genesisTransaction], genesisMerkleRoot, genesisDifficulty, 0, genesisAddress, genesisStateRoot
         );
 
         blockchain = [genesisBlock];
@@ -142,6 +159,7 @@ const getUnspentTxOuts = (): UnspentTxOut[] => _.cloneDeep(unspentTxOuts);
 // and txPool should be only updated at the same time
 const setUnspentTxOuts = (newUnspentTxOut: UnspentTxOut[]) => {
     unspentTxOuts = newUnspentTxOut;
+    globalState.setUnspentTxOuts(unspentTxOuts);
 };
 
 const getLatestBlock = (): Block => blockchain[blockchain.length - 1];
@@ -192,12 +210,12 @@ const getAdjustedDifficulty = (latestBlock: Block, aBlockchain: Block[]) => {
 
 const getCurrentTimestamp = (): number => Math.round(new Date().getTime() / 1000);
 
-const generateRawNextBlock = (blockData: Transaction[]) => {
+const generateRawNextBlock = async (blockData: Transaction[]) => {
     const previousBlock: Block = getLatestBlock();
     const difficulty: number = getDifficulty(getBlockchain());
     const nextIndex: number = previousBlock.index + 1;
     const newBlock: Block = findBlock(nextIndex, previousBlock.hash, blockData, difficulty);
-    if (newBlock !== null && addBlockToChain(newBlock)) {
+    if (newBlock !== null && await addBlockToChain(newBlock)) {
         broadcastLatest();
         return newBlock;
     } else {
@@ -211,13 +229,13 @@ const getMyUnspentTransactionOutputs = () => {
     return findUnspentTxOuts(getPublicFromWallet(), getUnspentTxOuts());
 };
 
-const generateNextBlock = () => {
+const generateNextBlock = async () => {
     const minterAddress = getPublicFromWallet();
     const latestBlock = getLatestBlock();
     const nextIndex = latestBlock.index + 1;
 
-    // Get all transactions from pool
-    const poolTxs = getTransactionPool();
+    // Get candidate transactions (e.g. top 50 by fee)
+    const poolTxs = getCandidateTransactions(50, getUnspentTxOuts());
 
     // Calculate total fees
     const totalFees = poolTxs
@@ -226,10 +244,10 @@ const generateNextBlock = () => {
 
     const coinbaseTx: Transaction = getCoinbaseTransaction(minterAddress, nextIndex, totalFees);
     const blockData: Transaction[] = [coinbaseTx].concat(poolTxs);
-    return generateRawNextBlock(blockData);
+    return await generateRawNextBlock(blockData);
 };
 
-const generatenextBlockWithTransaction = (receiverAddress: string, amount: number) => {
+const generatenextBlockWithTransaction = async (receiverAddress: string, amount: number) => {
     if (!isValidAddress(receiverAddress)) {
         throw Error('invalid address');
     }
@@ -251,7 +269,7 @@ const generatenextBlockWithTransaction = (receiverAddress: string, amount: numbe
 
     const coinbaseTx: Transaction = getCoinbaseTransaction(minterAddress, nextIndex, txFee);
     const blockData: Transaction[] = [coinbaseTx, tx];
-    return generateRawNextBlock(blockData);
+    return await generateRawNextBlock(blockData);
 };
 
 const findBlock = (index: number, previousHash: string, data: Transaction[], difficulty: number): Block => {
@@ -260,7 +278,16 @@ const findBlock = (index: number, previousHash: string, data: Transaction[], dif
     const hash: string = calculateHash(index, previousHash, timestamp, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
 
     if (isBlockStakingValid(previousHash, getPublicFromWallet(), timestamp, getAccountBalance(), difficulty, index)) {
-        return new Block(index, hash, previousHash, timestamp, data, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet());
+        // Calculate State Root for new block (Execute it tentatively)
+        // We need to execute transactions on CURRENT state to get the NEW state for the new block
+        // Re-use logic or call BlockExecutor logic.
+        // For simplicity here, we simulate execution to get the root.
+        const currentUTXOs = getUnspentTxOuts();
+        const nextUTXOs = processTransactions(data, currentUTXOs, index);
+        const nextState = new State(nextUTXOs);
+        const stateRoot = nextState.getRoot();
+
+        return new Block(index, hash, previousHash, timestamp, data, merkleRoot, difficulty, getAccountBalance(), getPublicFromWallet(), stateRoot);
     }
     return null;
 };
@@ -291,9 +318,12 @@ const isValidBlockStructure = (block: Block): boolean => {
         && typeof block.timestamp === 'number'
         && typeof block.data === 'object'
         && typeof block.merkleRoot === 'string'
+        && typeof block.merkleRoot === 'string'
         && typeof block.difficulty === 'number'
         && typeof block.minterBalance === 'number'
         && typeof block.minterAddress === 'string';
+    // && typeof block.stateRoot === 'string'; // Allow missing for old blocks? Or enforce? Enforce for new arch.
+
 };
 
 const isValidBlockHeader = (newBlock: Block, previousBlock: Block): boolean => {
@@ -346,6 +376,7 @@ const hasValidHash = (block: Block): boolean => {
 
     if (!isBlockStakingValid(block.previousHash, block.minterAddress, block.minterBalance, block.timestamp, block.difficulty, block.index)) {
         console.log('staking hash not lower than balance over diffculty times 2^256');
+        return false;
     }
     return true;
 };
@@ -366,7 +397,7 @@ const isBlockStakingValid = (prevhash: string, address: string, timestamp: numbe
         balance = balance + 1;
     }
 
-    const balanceOverDifficulty = new BigNumber(2).exponentiatedBy(256).times(balance).dividedBy(difficulty);
+    const balanceOverDifficulty = TWO_POW_256.times(balance).dividedBy(difficulty);
     const stakingHash: string = CryptoJS.SHA256(prevhash + address + timestamp).toString();
     const decimalStakingHash = new BigNumber(stakingHash, 16);
     const difference = balanceOverDifficulty.minus(decimalStakingHash).toNumber();
@@ -377,7 +408,10 @@ const isBlockStakingValid = (prevhash: string, address: string, timestamp: numbe
 /*
     Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
  */
-const isValidChain = (blockchainToValidate: Block[]): UnspentTxOut[] => {
+/*
+    Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
+ */
+const isValidChain = async (blockchainToValidate: Block[]): Promise<UnspentTxOut[]> => {
     console.log('isValidChain:');
     console.log(JSON.stringify(blockchainToValidate));
     const isValidGenesis = (block: Block): boolean => {
@@ -415,54 +449,112 @@ const isValidChain = (blockchainToValidate: Block[]): UnspentTxOut[] => {
     let aUnspentTxOuts: UnspentTxOut[] = [];
 
     for (let i = 0; i < blockchainToValidate.length; i++) {
-        const currentBlock: Block = blockchainToValidate[i];
-        if (i !== 0 && !isValidNewBlock(blockchainToValidate[i], blockchainToValidate[i - 1])) {
-            console.log('isValidChain: Block ' + i + ' is invalid compared to block ' + (i - 1));
-            return null;
+        // Yield to event loop every 10 blocks to prevent blocking
+        if (i % 10 === 0) {
+            await yieldToEventLoop();
         }
 
-        aUnspentTxOuts = processTransactions(currentBlock.data, aUnspentTxOuts, currentBlock.index);
-        if (aUnspentTxOuts === null) {
-            console.log('isValidChain: invalid transactions in blockchain at block index: ' + i);
-            return null;
+        const currentBlock: Block = blockchainToValidate[i];
+
+        // Use Executor for validation
+        // We must have a state to execute against.
+        // For i=0 (Genesis), we assume valid if structure valid (checked above) 
+        // For i > 0, we need state from i-1.
+
+        // This loop rebuilds state from 0...N.
+        // We should maintain a tempState variable.
+        let currentState: State;
+        if (i === 0) {
+            // Genesis
+            // We already validated genesis structure. 
+            // Just need to set initial state.
+            const genesisUTXOs = processTransactions(currentBlock.data, [], 0);
+            currentState = new State(genesisUTXOs);
+            // Verify root if present
+            if (currentBlock.stateRoot && currentBlock.stateRoot !== currentState.getRoot()) {
+                throw new ValidationError('Genesis State Root mismatch', ValidationErrorCode.INVALID_BLOCK_HASH, true);
+            }
+            aUnspentTxOuts = genesisUTXOs;
+        } else {
+            // Non-Genesis
+            currentState = new State(aUnspentTxOuts); // State before this block
+
+            if (!isValidNewBlock(currentBlock, blockchainToValidate[i - 1])) {
+                console.log('isValidChain: Block ' + i + ' is invalid compared to block ' + (i - 1));
+                return null;
+            }
+
+            // Execute block
+            try {
+                const newState = await BlockExecutor.executeBlock(currentBlock, currentState);
+                aUnspentTxOuts = newState.getUnspentTxOuts();
+            } catch (e) {
+                console.log('Invalid block execution at index ' + i + ': ' + e.message);
+                if (e instanceof ValidationError && e.shouldBan) throw e;
+                return null;
+            }
         }
     }
     return aUnspentTxOuts;
 };
 
-const addBlockToChain = (newBlock: Block): boolean => {
+const addBlockToChain = async (newBlock: Block): Promise<boolean> => {
     if (isValidNewBlock(newBlock, getLatestBlock())) {
-        const retVal: UnspentTxOut[] = processTransactions(newBlock.data, getUnspentTxOuts(), newBlock.index);
-        if (retVal === null) {
-            console.log('block is not valid in terms of transactions');
-            return false;
-        } else {
+        try {
+            // Strict execution via Executor
+            const currentState = new State(getUnspentTxOuts());
+            const newState = await BlockExecutor.executeBlock(newBlock, currentState);
+            const retVal = newState.getUnspentTxOuts();
+
             blockchain.push(newBlock);
             setUnspentTxOuts(retVal);
             updateTransactionPool(unspentTxOuts);
             saveBlockchain();
             return true;
+        } catch (e) {
+            console.log('block execution failed', e);
+            if (e instanceof ValidationError && e.shouldBan) throw e;
+            return false;
         }
+    } else {
+        // If isValidNewBlock returned false without throwing (e.g. structure error caught inside?)
+        // Actually isValidNewBlock mainly logs and returns false.
+        // We should probably throw if we want to ban for invalid blocks.
+        // For now, let's just make sure we capture that it was invalid.
+        return false;
     }
-    return false;
 };
 
-const replaceChain = (newBlocks: Block[]) => {
-    const aUnspentTxOuts = isValidChain(newBlocks);
-    const validChain: boolean = aUnspentTxOuts !== null;
-    if (validChain &&
-        getAccumulatedDifficulty(newBlocks).gt(getAccumulatedDifficulty(getBlockchain()))) {
+const getCumulativeDifficulty = (aBlockchain: Block[]): BigNumber => {
+    return aBlockchain
+        .map((block) => new BigNumber(block.difficulty))
+        .reduce((a, b) => a.plus(b), new BigNumber(0)); // Start with 0
+};
+
+const replaceChain = async (newBlocks: Block[]) => {
+    // We need to re-execute the whole chain to build the state?
+    // isValidChain basically did that and returned the UnspentTxOuts.
+    // But isValidChain returns unspentTxOuts for the *end* of the chain.
+    // We need to ensure globalState and unspentTxOuts are updated.
+    // We should probably optimize isValidChain to NOT just return UTXOs but maybe update if successful?
+    // OR we just assume isValidChain does the heavy lifting and we trust it.
+    // BUT, isValidChain runs on a copy/validation mode.
+    // We need to commit the state.
+
+    // Simpler way: isValidChain returns the final UTXO set associated with the new chain.
+    // checking the logic of isValidChain...
+    const newUnspentTxOuts = await isValidChain(newBlocks);
+    if (newUnspentTxOuts !== null &&
+        getCumulativeDifficulty(newBlocks).gt(getCumulativeDifficulty(blockchain))) { // Use Cumulative Difficulty
         console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
+
         blockchain = newBlocks;
-        setUnspentTxOuts(aUnspentTxOuts);
+        setUnspentTxOuts(newUnspentTxOuts);
         updateTransactionPool(unspentTxOuts);
-        saveBlockchain();
         broadcastLatest();
+        saveBlockchain();
     } else {
-        console.log('Received blockchain invalid');
-        console.log('Valid Chain: ' + validChain);
-        // console.log('New Difficulty: ' + getAccumulatedDifficulty(newBlocks).toFixed());
-        // console.log('Current Difficulty: ' + getAccumulatedDifficulty(getBlockchain()).toFixed());
+        console.log('Received blockchain invalid or not heavier');
     }
 };
 
@@ -474,6 +566,11 @@ export {
     Block, getBlockchain, getUnspentTxOuts, getLatestBlock, sendTransaction,
     generateRawNextBlock, generateNextBlock, generatenextBlockWithTransaction,
     handleReceivedTransaction, getMyUnspentTransactionOutputs,
-    getAccountBalance, isValidBlockStructure, replaceChain, addBlockToChain, initGenesisBlock,
+    getAccountBalance,
+    isValidBlockStructure,
+    replaceChain,
+    addBlockToChain,
+    getCumulativeDifficulty, // Exported
+    initGenesisBlock,
     getBlockHeaders, isValidBlockHeader
 };

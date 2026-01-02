@@ -6,8 +6,13 @@ import {
 } from './blockchain';
 import { Transaction } from './transaction';
 import { getTransactionPool } from './transactionPool';
+import { ValidationError } from './validation_errors';
+
+import { peerManager } from './peerManager';
 
 const sockets: WebSocket[] = [];
+// const bannedPeers: Set<string> = new Set(); // Replaced by peerManager
+
 
 enum MessageType {
     QUERY_LATEST = 0,
@@ -28,7 +33,13 @@ class Message {
 
 const initP2PServer = (p2pPort: number) => {
     const server: Server = new WebSocket.Server({ port: p2pPort });
-    server.on('connection', (ws: WebSocket) => {
+    server.on('connection', (ws: WebSocket, req: any) => {
+        const ip = req.socket.remoteAddress;
+        if (peerManager.isBanned(ip)) {
+            console.log('Rejected connection from banned peer: ' + ip);
+            ws.close();
+            return;
+        }
         initConnection(ws);
     });
     console.log('listening websocket p2p port on: ' + p2pPort);
@@ -59,7 +70,6 @@ const JSONToObject = <T>(data: string): T => {
 
 const initMessageHandler = (ws: WebSocket) => {
     ws.on('message', (data: string) => {
-
         try {
             const message: Message = JSONToObject<Message>(data);
             if (message === null) {
@@ -67,56 +77,48 @@ const initMessageHandler = (ws: WebSocket) => {
                 return;
             }
             console.log('Received message: %s', JSON.stringify(message));
-            switch (message.type) {
-                case MessageType.QUERY_LATEST:
-                    write(ws, responseLatestMsg());
-                    break;
-                case MessageType.QUERY_ALL:
-                    write(ws, responseChainMsg());
-                    break;
-                case MessageType.RESPONSE_BLOCKCHAIN:
-                    const receivedBlocks: Block[] = JSONToObject<Block[]>(message.data);
-                    if (receivedBlocks === null) {
-                        console.log('invalid blocks received: %s', JSON.stringify(message.data));
-                        break;
+            if (message.type === MessageType.QUERY_LATEST) {
+                write(ws, responseLatestMsg());
+            } else if (message.type === MessageType.QUERY_ALL) {
+                write(ws, responseChainMsg());
+            } else if (message.type === MessageType.RESPONSE_BLOCKCHAIN) {
+                const receivedBlocks: Block[] = JSONToObject<Block[]>(message.data);
+                if (receivedBlocks === null) {
+                    console.log('invalid blocks received: %s', JSON.stringify(message.data));
+                    return;
+                }
+                console.log('Received blockchain response. Count: ' + receivedBlocks.length);
+                if (receivedBlocks.length > 0) {
+                    console.log('Range: ' + receivedBlocks[0].index + ' -> ' + receivedBlocks[receivedBlocks.length - 1].index);
+                }
+                handleBlockchainResponse(receivedBlocks, ws);
+            } else if (message.type === MessageType.QUERY_TRANSACTION_POOL) {
+                write(ws, responseTransactionPoolMsg());
+            } else if (message.type === MessageType.RESPONSE_TRANSACTION_POOL) {
+                const receivedTransactions: Transaction[] = JSONToObject<Transaction[]>(message.data);
+                if (receivedTransactions === null) {
+                    console.log('invalid transaction received: %s', JSON.stringify(message.data));
+                    return;
+                }
+                receivedTransactions.forEach((transaction: Transaction) => {
+                    try {
+                        handleReceivedTransaction(transaction);
+                        // if no error is thrown, transaction was either added to pool or already in it.
+                        broadcast(responseTransactionPoolMsg());
+                    } catch (e) {
+                        console.log(e.message);
                     }
-                    console.log('Received blockchain response. Count: ' + receivedBlocks.length);
-                    if (receivedBlocks.length > 0) {
-                        console.log('Range: ' + receivedBlocks[0].index + ' -> ' + receivedBlocks[receivedBlocks.length - 1].index);
-                    }
-                    handleBlockchainResponse(receivedBlocks);
-                    break;
-                case MessageType.QUERY_TRANSACTION_POOL:
-                    write(ws, responseTransactionPoolMsg());
-                    break;
-                case MessageType.RESPONSE_TRANSACTION_POOL:
-                    const receivedTransactions: Transaction[] = JSONToObject<Transaction[]>(message.data);
-                    if (receivedTransactions === null) {
-                        console.log('invalid transaction received: %s', JSON.stringify(message.data));
-                        break;
-                    }
-                    receivedTransactions.forEach((transaction: Transaction) => {
-                        try {
-                            handleReceivedTransaction(transaction);
-                            // if no error is thrown, transaction was indeed added to the pool
-                            // let's broadcast transaction pool
-                            broadCastTransactionPool();
-                        } catch (e) {
-                            console.log(e.message);
-                        }
-                    });
-                    break;
-                case MessageType.QUERY_HEADERS:
-                    write(ws, responseHeadersMsg());
-                    break;
-                case MessageType.RESPONSE_HEADERS:
-                    const receivedHeaders: Block[] = JSONToObject<Block[]>(message.data);
-                    if (receivedHeaders === null) {
-                        console.log('invalid headers received: %s', JSON.stringify(message.data));
-                        break;
-                    }
-                    handleHeadersResponse(receivedHeaders);
-                    break;
+                });
+            } else if (message.type === MessageType.QUERY_HEADERS) {
+                // Return all headers (simplification, ideally we'd support range)
+                write(ws, responseHeadersMsg());
+            } else if (message.type === MessageType.RESPONSE_HEADERS) {
+                const receivedHeaders: Block[] = JSONToObject<Block[]>(message.data);
+                if (receivedHeaders === null) {
+                    console.log('invalid headers received: %s', JSON.stringify(message.data));
+                    return;
+                }
+                handleBinHeadersResponse(receivedHeaders, ws);
             }
         } catch (e) {
             console.log(e);
@@ -129,7 +131,10 @@ const broadcast = (message: Message): void => sockets.forEach((socket) => write(
 
 const queryChainLengthMsg = (): Message => ({ 'type': MessageType.QUERY_LATEST, 'data': null });
 
-const queryAllMsg = (): Message => ({ 'type': MessageType.QUERY_ALL, 'data': null });
+const queryAllMsg = (): Message => ({
+    'type': MessageType.QUERY_ALL,
+    'data': null
+});
 
 const responseChainMsg = (): Message => ({
     'type': MessageType.RESPONSE_BLOCKCHAIN, 'data': JSON.stringify(getBlockchain())
@@ -150,10 +155,15 @@ const responseTransactionPoolMsg = (): Message => ({
     'data': JSON.stringify(getTransactionPool())
 });
 
-const queryHeadersMsg = (): Message => ({ 'type': MessageType.QUERY_HEADERS, 'data': null });
+const queryHeadersMsg = (): Message => ({
+    'type': MessageType.QUERY_HEADERS,
+    'data': null
+});
 
 const responseHeadersMsg = (): Message => ({
-    'type': MessageType.RESPONSE_HEADERS, 'data': JSON.stringify(getBlockHeaders(0, getBlockchain().length))
+    'type': MessageType.RESPONSE_HEADERS,
+    'data': JSON.stringify(getBlockHeaders(0, getBlockchain().length))
+    // Optimization: blockchain.ts/getBlockHeaders strips data
 });
 
 const initErrorHandler = (ws: WebSocket) => {
@@ -165,7 +175,27 @@ const initErrorHandler = (ws: WebSocket) => {
     ws.on('error', () => closeConnection(ws));
 };
 
-const handleBlockchainResponse = (receivedBlocks: Block[]) => {
+const banPeer = (ws: WebSocket, reason: string) => {
+    const ip = (ws as any)._socket.remoteAddress;
+    console.log(`Banning peer ${ip} for: ${reason}`);
+    // bannedPeers.add(ip);
+    peerManager.banPeer(ip); // Instant ban
+    ws.close();
+};
+
+// Start: Punishment points
+const punishPeer = (ws: WebSocket, penaltyType: 'BLOCK' | 'TX' | 'SPAM') => {
+    const ip = (ws as any)._socket.remoteAddress;
+    if (penaltyType === 'BLOCK') peerManager.punishInvalidBlock(ip);
+    else if (penaltyType === 'TX') peerManager.punishInvalidTransaction(ip);
+    else if (penaltyType === 'SPAM') peerManager.punishSpam(ip);
+
+    if (peerManager.isBanned(ip)) {
+        ws.close();
+    }
+};
+
+const handleBlockchainResponse = async (receivedBlocks: Block[], ws: WebSocket) => {
     if (receivedBlocks.length === 0) {
         console.log('received block chain size of 0');
         return;
@@ -180,47 +210,63 @@ const handleBlockchainResponse = (receivedBlocks: Block[]) => {
         console.log('blockchain possibly behind. We got: '
             + latestBlockHeld.index + ' Peer got: ' + latestBlockReceived.index);
         if (latestBlockHeld.hash === latestBlockReceived.previousHash) {
-            if (addBlockToChain(latestBlockReceived)) {
-                broadcast(responseLatestMsg());
+            try {
+                if (await addBlockToChain(latestBlockReceived)) {
+                    broadcast(responseLatestMsg());
+                }
+            } catch (e) {
+                if (e instanceof ValidationError && e.shouldBan) {
+                    banPeer(ws, e.message); // Critical error -> Ban
+                    return;
+                }
+                punishPeer(ws, 'BLOCK'); // Non-critical validation error -> Penalty
+                console.log('Error adding block: ' + e.message);
             }
         } else if (receivedBlocks.length === 1) {
             console.log('We have to query the chain from our peer');
             broadcast(queryHeadersMsg());
         } else {
             console.log('Received blockchain is longer than current blockchain');
-            replaceChain(receivedBlocks);
+            try {
+                await replaceChain(receivedBlocks);
+            } catch (e) {
+                if (e instanceof ValidationError && e.shouldBan) {
+                    banPeer(ws, e.message);
+                    return;
+                }
+                punishPeer(ws, 'BLOCK');
+                console.log('Error replacing chain: ' + e.message);
+            }
         }
     } else {
         console.log('received blockchain is not longer than received blockchain. Do nothing');
     }
 };
 
-const handleHeadersResponse = (receivedHeaders: Block[]) => {
+const handleBinHeadersResponse = async (receivedHeaders: Block[], ws: WebSocket) => {
+    // 1. Validate Headers (structure, proof of stake, chaining)
+    // We assume isValidBlockHeader can check basics without state (except PoS balance check needs some state,
+    // but in 'naive' pos we check against minterBalance field which is signed in valid blocks).
+    // Better: we trust the header structure and chain, then check difficulty.
+
     if (receivedHeaders.length === 0) {
         console.log('received headers size of 0');
         return;
     }
     console.log('Received headers. Count: ' + receivedHeaders.length);
-    const latestHeaderReceived = receivedHeaders[receivedHeaders.length - 1];
-    if (latestHeaderReceived.index > getLatestBlock().index) {
-        console.log('Headers chain is longer. Validating structure...');
-        // Validate header chain locally
-        let isValid = true;
-        for (let i = 0; i < receivedHeaders.length - 1; i++) {
-            if (!isValidBlockHeader(receivedHeaders[i + 1], receivedHeaders[i])) {
-                isValid = false;
-                break;
-            }
-        }
-        if (isValid) {
-            console.log('Headers chain valid. Requesting full chain data...');
-            // For this iteration, we fallback to requesting all data safely, 
-            // knowing the peer has a valid chain.
-            // Future improvement: Request blocks individually.
-            broadcast(queryAllMsg());
-        } else {
-            console.log('Invalid header chain received.');
-        }
+    const latestHeader = receivedHeaders[receivedHeaders.length - 1];
+    const latestHeldBlock = getLatestBlock();
+
+    // Check if their chain is "heavier" (or longer for now, as difficulty is in header)
+    // We need cumulative difficulty of this remote header chain.
+    // Since we only have headers, we can assume the difficulty claimed in them is true for check,
+    // but we MUST validate it when we download bodies.
+
+    if (latestHeader.index > latestHeldBlock.index) {
+        console.log('Peer has better chain (headers). Requesting full blocks.');
+        // Basic optimization: if gap is large, we should sync efficiently.
+        // For now: Request ALL blocks. (Refinement: Request blocks from common ancestor)
+        write(ws, queryAllMsg());
     }
 };
 
@@ -229,9 +275,20 @@ const broadcastLatest = (): void => {
 };
 
 const connectToPeers = (newPeer: string): void => {
+    // Check if banned
+    const ip = newPeer.split(':')[0].replace('ws://', ''); // Minimal parsing, real world needs better URL parsing
+    // Actually simpler: we can't easily know IP before connection unless we parse completely.
+    // But since we store "remoteAddress" in bannedPeers, let's try to match.
+    // For now, just allow connection and ban on handshake if needed, or check simple string match if possible.
+
     const ws: WebSocket = new WebSocket(newPeer);
     ws.on('open', () => {
         initConnection(ws);
+        // Instead of asking for latest immediately, let's ask for HEADERS to check validity/pow/pos first
+        // write(ws, queryLatestMsg()); 
+        // Ideally: write(ws, queryHeadersMsg());
+        // For backward compatibility / robust start, queryLatest is fine, but headers is better.
+        write(ws, queryHeadersMsg());
     });
     ws.on('error', () => {
         console.log('connection failed');
