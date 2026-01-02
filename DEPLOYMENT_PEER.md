@@ -24,10 +24,16 @@ Pour créer un nouveau nœud (pair), nous allons créer une nouvelle instance VM
     *   [x] Autoriser le trafic HTTP
     *   [x] Autoriser le trafic HTTPS
  
-5.  **Networking (Optionnel - IP Fixe)** :
-    *   Comme pour le premier nœud, il est recommandé de réserver une IP statique.
-    *   **Options avancées** > **Mise en réseau** > **Interfaces réseau**.
-    *   **Adresse IPv4 externe** > **Créer une adresse IP** (ex: `ipv4-node-2`).
+5.  **Interfaces réseau (Pour une IP Fixe - Recommandé)** :
+    *   Dépliez la section **Options avancées** (en bas de page) > **Mise en réseau**.
+    *   Allez dans la sous-section **Interfaces réseau**.
+    *   *Note : Si vous voyez déjà les champs "Réseau", "Sous-réseau" etc., passez directement à la ligne suivante.*
+    *   Repérez le champ **Adresse IPv4 externe** (il indique probablement "Éphémère").
+    *   Cliquez sur le menu déroulant et choisissez **Créer une adresse IP**.
+        *   Nommez-la (ex: `ip-node-2`).
+        *   Cliquez sur **Réserver**.
+    *   **Niveau de service réseau** : Laissez sur `Premium`.
+    *   Cliquez sur **Terminé** (si le bouton est présent en bas du bloc réseau).
  
 6.  Cliquez sur **Créer**.
  

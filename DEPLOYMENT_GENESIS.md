@@ -34,10 +34,16 @@ Nous utiliserons **Google Cloud Platform (GCP)** pour ce guide, en profitant de 
         *   [x] **Autoriser le trafic HTTPS**
     *   *Note : Cela configure les règles de base, nous ouvrirons les ports spécifiques (3001/6001) à l'étape suivante.*
 
-6.  **Networking (Optionnel mais recommandé - IP Fixe)** :
-    *   Dépliez **Options avancées** > **Mise en réseau**.
-    *   Sous **Interfaces réseau**, cliquez sur la flèche pour modifier l'interface par défaut.
-    *   Sous **Adresse IPv4 externe**, choisissez **Créer une adresse IP**. Donnez-lui un nom (ex: `ipv4-node-1`) et réservez-la. Cela évite que l'IP change au redémarrage.
+6.  **Interfaces réseau (Pour une IP Fixe - Recommandé)** :
+    *   Dépliez la section **Options avancées** (en bas de page) > **Mise en réseau**.
+    *   Allez dans la sous-section **Interfaces réseau**.
+    *   *Note : Si vous voyez déjà les champs "Réseau", "Sous-réseau" etc., passez directement à la ligne suivante.*
+    *   Repérez le champ **Adresse IPv4 externe** (il indique probablement "Éphémère").
+    *   Cliquez sur le menu déroulant et choisissez **Créer une adresse IP**.
+        *   Nommez-la (ex: `ip-node-1`).
+        *   Cliquez sur **Réserver**.
+    *   **Niveau de service réseau** : Laissez sur `Premium`.
+    *   Cliquez sur **Terminé** (si le bouton est présent en bas du bloc réseau).
 
 7.  Cliquez sur **Créer** en bas de page.
 
