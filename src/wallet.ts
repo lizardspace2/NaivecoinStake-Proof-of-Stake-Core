@@ -5,37 +5,28 @@ import { getPublicKey, getTransactionId, signTxIn, Transaction, TxIn, TxOut, Uns
 
 const privateKeyLocation = process.env.PRIVATE_KEY || 'node/wallet/private_key';
 
-// Cache for Dilithium instance to avoid repeated initialization
 let dilithiumInstance: any = null;
 
-// Initialize Dilithium instance (synchronous wrapper)
 const getDilithium = (): any => {
     if (dilithiumInstance === null) {
-        // dilithium-crystals-js exports a Promise, we need to handle it
-        // For now, we'll use a synchronous approach by storing the promise result
         throw new Error('Dilithium not initialized. Call initDilithium() first.');
     }
     return dilithiumInstance;
 };
 
-// Initialize Dilithium (should be called at startup)
 const initDilithium = async (): Promise<void> => {
     if (dilithiumInstance === null) {
         dilithiumInstance = await DilithiumModule;
     }
 };
 
-// Synchronous version that uses cached instance
 const getDilithiumSync = (): any => {
     if (dilithiumInstance === null) {
-        // Try to get it synchronously - this will fail if not initialized
-        // In production, you'd want to ensure initDilithium is called at startup
         throw new Error('Dilithium not initialized. Ensure initDilithium() was called.');
     }
     return dilithiumInstance;
 };
 
-// Dilithium level 2 (CRYPTO_PUBLICKEYBYTES: 1472)
 const DILITHIUM_LEVEL = 2;
 
 const getPrivateFromWallet = (): string => {
@@ -45,15 +36,10 @@ const getPrivateFromWallet = (): string => {
 
 const getPublicFromWallet = (): string => {
     const privateKey = getPrivateFromWallet();
-    // Private key is stored as base64 JSON string containing both keys
-    // Format: {"publicKey": [...], "privateKey": [...]}
     try {
         const keyPair = JSON.parse(privateKey);
-        // Convert Uint8Array to hex string
         return Buffer.from(keyPair.publicKey).toString('hex');
     } catch (error) {
-        // Legacy format: just private key, need to extract public key
-        // For now, we'll need to store both keys
         throw new Error('Invalid key format. Please regenerate wallet.');
     }
 };
@@ -61,8 +47,6 @@ const getPublicFromWallet = (): string => {
 const generatePrivateKey = (): string => {
     const dilithium = getDilithiumSync();
     const keyPair = dilithium.generateKeys(DILITHIUM_LEVEL);
-    // Store both keys as JSON string (base64 encoded arrays)
-    // Convert Uint8Array to regular arrays for JSON serialization
     const keyPairObj = {
         publicKey: Array.from(keyPair.publicKey),
         privateKey: Array.from(keyPair.privateKey)
@@ -71,7 +55,6 @@ const generatePrivateKey = (): string => {
 };
 
 const initWallet = () => {
-    // let's not override existing private keys
     if (existsSync(privateKeyLocation)) {
         return;
     }
@@ -107,7 +90,6 @@ const findTxOutsForAmount = (amount: number, myUnspentTxOuts: UnspentTxOut[]) =>
     for (const myUnspentTxOut of myUnspentTxOuts) {
         includedUnspentTxOuts.push(myUnspentTxOut);
         currentAmount = currentAmount + myUnspentTxOut.amount;
-        // Require enough for amount + safe fee (0.0001) to avoid floating point issues with minimum 0.00001
         if (currentAmount >= amount + 0.0001) {
             const leftOverAmount = currentAmount - amount - 0.0001;
             return { includedUnspentTxOuts, leftOverAmount };
@@ -159,7 +141,6 @@ const createTransaction = (receiverAddress: string, amount: number, privateKey: 
 
     const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
 
-    // filter from unspentOutputs such inputs that are referenced in pool
     const { includedUnspentTxOuts, leftOverAmount } = findTxOutsForAmount(amount, myUnspentTxOuts);
 
     const toUnsignedTxIn = (unspentTxOut: UnspentTxOut) => {

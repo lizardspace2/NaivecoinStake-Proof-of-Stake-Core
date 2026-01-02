@@ -5,7 +5,7 @@ import * as fs from 'fs';
 const generate = async () => {
     try {
         const dilithium = await DilithiumModule;
-        const DILITHIUM_LEVEL = 2; // Matches src/wallet.ts
+        const DILITHIUM_LEVEL = 2;
         const keyPair = dilithium.generateKeys(DILITHIUM_LEVEL);
 
         const publicKeyHex = Buffer.from(keyPair.publicKey).toString('hex');

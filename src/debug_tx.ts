@@ -4,7 +4,6 @@ import { createTransaction } from './wallet';
 import { validateTransaction } from './transaction';
 import * as _ from 'lodash';
 
-// Minimal mock of the environment to test transaction creation and validation
 const run = () => {
     try {
         console.log('--- Transaction Debugger ---');

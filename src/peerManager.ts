@@ -1,6 +1,6 @@
 
 export interface PeerState {
-    id: string; // IP or IP:Port
+    id: string;
     score: number;
     isBanned: boolean;
     banEndTime: number;
@@ -8,7 +8,7 @@ export interface PeerState {
 
 const INITIAL_SCORE = 100;
 const BAN_THRESHOLD = 0;
-const BAN_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const BAN_DURATION_MS = 60 * 60 * 1000;
 
 class PeerManager {
     private peers: Map<string, PeerState> = new Map();
@@ -28,7 +28,7 @@ class PeerManager {
     public updateScore(id: string, delta: number): void {
         const peer = this.getPeer(id);
         if (peer.isBanned && Date.now() < peer.banEndTime) {
-            return; // Already banned
+            return;
         }
 
         peer.score += delta;
@@ -50,8 +50,8 @@ class PeerManager {
         const peer = this.getPeer(id);
         if (peer.isBanned) {
             if (Date.now() > peer.banEndTime) {
-                peer.isBanned = false; // Unban
-                peer.score = INITIAL_SCORE / 2; // Reset to lower score
+                peer.isBanned = false;
+                peer.score = INITIAL_SCORE / 2;
                 return false;
             }
             return true;
@@ -59,7 +59,6 @@ class PeerManager {
         return false;
     }
 
-    // Penalties
     public punishInvalidBlock(id: string) {
         this.updateScore(id, -50);
     }

@@ -11,7 +11,6 @@ import { ValidationError } from './validation_errors';
 import { peerManager } from './peerManager';
 
 const sockets: WebSocket[] = [];
-// const bannedPeers: Set<string> = new Set(); // Replaced by peerManager
 
 
 enum MessageType {
@@ -53,7 +52,6 @@ const initConnection = (ws: WebSocket) => {
     initErrorHandler(ws);
     write(ws, queryChainLengthMsg());
 
-    // query transactions pool only some time after chain query
     setTimeout(() => {
         broadcast(queryTransactionPoolMsg());
     }, 500);
@@ -103,14 +101,12 @@ const initMessageHandler = (ws: WebSocket) => {
                 receivedTransactions.forEach((transaction: Transaction) => {
                     try {
                         handleReceivedTransaction(transaction);
-                        // if no error is thrown, transaction was either added to pool or already in it.
                         broadcast(responseTransactionPoolMsg());
                     } catch (e) {
                         console.log(e.message);
                     }
                 });
             } else if (message.type === MessageType.QUERY_HEADERS) {
-                // Return all headers (simplification, ideally we'd support range)
                 write(ws, responseHeadersMsg());
             } else if (message.type === MessageType.RESPONSE_HEADERS) {
                 const receivedHeaders: Block[] = JSONToObject<Block[]>(message.data);
@@ -163,7 +159,6 @@ const queryHeadersMsg = (): Message => ({
 const responseHeadersMsg = (): Message => ({
     'type': MessageType.RESPONSE_HEADERS,
     'data': JSON.stringify(getBlockHeaders(0, getBlockchain().length))
-    // Optimization: blockchain.ts/getBlockHeaders strips data
 });
 
 const initErrorHandler = (ws: WebSocket) => {
@@ -178,12 +173,10 @@ const initErrorHandler = (ws: WebSocket) => {
 const banPeer = (ws: WebSocket, reason: string) => {
     const ip = (ws as any)._socket.remoteAddress;
     console.log(`Banning peer ${ip} for: ${reason}`);
-    // bannedPeers.add(ip);
-    peerManager.banPeer(ip); // Instant ban
+    peerManager.banPeer(ip);
     ws.close();
 };
 
-// Start: Punishment points
 const punishPeer = (ws: WebSocket, penaltyType: 'BLOCK' | 'TX' | 'SPAM') => {
     const ip = (ws as any)._socket.remoteAddress;
     if (penaltyType === 'BLOCK') peerManager.punishInvalidBlock(ip);
@@ -216,10 +209,10 @@ const handleBlockchainResponse = async (receivedBlocks: Block[], ws: WebSocket) 
                 }
             } catch (e) {
                 if (e instanceof ValidationError && e.shouldBan) {
-                    banPeer(ws, e.message); // Critical error -> Ban
+                    banPeer(ws, e.message);
                     return;
                 }
-                punishPeer(ws, 'BLOCK'); // Non-critical validation error -> Penalty
+                punishPeer(ws, 'BLOCK');
                 console.log('Error adding block: ' + e.message);
             }
         } else if (receivedBlocks.length === 1) {
@@ -244,10 +237,6 @@ const handleBlockchainResponse = async (receivedBlocks: Block[], ws: WebSocket) 
 };
 
 const handleBinHeadersResponse = async (receivedHeaders: Block[], ws: WebSocket) => {
-    // 1. Validate Headers (structure, proof of stake, chaining)
-    // We assume isValidBlockHeader can check basics without state (except PoS balance check needs some state,
-    // but in 'naive' pos we check against minterBalance field which is signed in valid blocks).
-    // Better: we trust the header structure and chain, then check difficulty.
 
     if (receivedHeaders.length === 0) {
         console.log('received headers size of 0');
@@ -257,15 +246,8 @@ const handleBinHeadersResponse = async (receivedHeaders: Block[], ws: WebSocket)
     const latestHeader = receivedHeaders[receivedHeaders.length - 1];
     const latestHeldBlock = getLatestBlock();
 
-    // Check if their chain is "heavier" (or longer for now, as difficulty is in header)
-    // We need cumulative difficulty of this remote header chain.
-    // Since we only have headers, we can assume the difficulty claimed in them is true for check,
-    // but we MUST validate it when we download bodies.
-
     if (latestHeader.index > latestHeldBlock.index) {
         console.log('Peer has better chain (headers). Requesting full blocks.');
-        // Basic optimization: if gap is large, we should sync efficiently.
-        // For now: Request ALL blocks. (Refinement: Request blocks from common ancestor)
         write(ws, queryAllMsg());
     }
 };
@@ -275,19 +257,11 @@ const broadcastLatest = (): void => {
 };
 
 const connectToPeers = (newPeer: string): void => {
-    // Check if banned
-    const ip = newPeer.split(':')[0].replace('ws://', ''); // Minimal parsing, real world needs better URL parsing
-    // Actually simpler: we can't easily know IP before connection unless we parse completely.
-    // But since we store "remoteAddress" in bannedPeers, let's try to match.
-    // For now, just allow connection and ban on handshake if needed, or check simple string match if possible.
+    const ip = newPeer.split(':')[0].replace('ws://', '');
 
     const ws: WebSocket = new WebSocket(newPeer);
     ws.on('open', () => {
         initConnection(ws);
-        // Instead of asking for latest immediately, let's ask for HEADERS to check validity/pow/pos first
-        // write(ws, queryLatestMsg()); 
-        // Ideally: write(ws, queryHeadersMsg());
-        // For backward compatibility / robust start, queryLatest is fine, but headers is better.
         write(ws, queryHeadersMsg());
     });
     ws.on('error', () => {

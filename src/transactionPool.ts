@@ -20,15 +20,6 @@ const addToTransactionPool = (tx: Transaction, unspentTxOuts: UnspentTxOut[]) =>
     }
 
     if (transactionPool.length >= MAX_TRANSACTION_POOL_SIZE) {
-        // Evict transaction with lowest fee
-        // We need unspentTxOuts to calculate fees for all txs in pool.
-        // For simplicity, we assume we have access or pass it.
-        // Wait, 'validateTransaction' is called, so we have 'unspentTxOuts'.
-        // But for *other* txs in pool, we need their fees.
-        // Computing fees for ALL pool txs every time we add might be slow?
-        // Let's do it simply for now.
-
-        // This is O(N) check.
         const poolWithFees = transactionPool.map(t => ({ tx: t, fee: getTxFee(t, unspentTxOuts) }));
         const minFeeTx = _.minBy(poolWithFees, 'fee');
         const newTxFee = getTxFee(tx, unspentTxOuts);
@@ -93,7 +84,6 @@ const isValidTxForPool = (tx: Transaction, aTtransactionPool: Transaction[]): bo
     return true;
 };
 
-// Returns top N transactions by fee for mining
 const getCandidateTransactions = (limit: number, unspentTxOuts: UnspentTxOut[]): Transaction[] => {
     return _(transactionPool)
         .map(tx => ({ tx, fee: getTxFee(tx, unspentTxOuts) }))

@@ -8,8 +8,6 @@ const HALVING_INTERVAL: number = 100000;
 
 export const getCoinbaseAmount = (blockIndex: number): number => {
     const halvings = Math.floor(blockIndex / HALVING_INTERVAL);
-    // Use bitwise shift for halving (or simple division for floating point coins if needed, but here assuming standard logic)
-    // For simplicity and readability with type number:
     let amount = COINBASE_AMOUNT_INITIAL;
     for (let i = 0; i < halvings; i++) {
         amount = amount / 2;
@@ -26,7 +24,6 @@ export const getCoinbaseTransaction = (address: string, blockIndex: number, bloc
 
     t.txIns = [txIn];
 
-    // Calculate total reward: Base Coinbase Amount + Transaction Fees
     const reward = getCoinbaseAmount(blockIndex) + blockFees;
 
     t.txOuts = [new TxOut(address, reward)];
@@ -36,7 +33,7 @@ export const getCoinbaseTransaction = (address: string, blockIndex: number, bloc
 
 export const getTxFee = (transaction: Transaction, aUnspentTxOuts: UnspentTxOut[]): number => {
     if (transaction.txIns[0].txOutId === '') {
-        return 0; // Coinbase has no fee
+        return 0;
     }
 
     const totalIn = transaction.txIns
@@ -49,12 +46,6 @@ export const getTxFee = (transaction: Transaction, aUnspentTxOuts: UnspentTxOut[
 
     return totalIn - totalOut;
 };
-
-// ... inside validateTransaction ...
-// if (getTxFee(transaction, aUnspentTxOuts) < 0.01) {
-//    console.log('transaction fee too low: ' + getTxFee(transaction, aUnspentTxOuts));
-//    return false;
-// }
 
 class UnspentTxOut {
     public readonly txOutId: string;
@@ -132,8 +123,6 @@ const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTx
         .reduce((a, b) => (a + b), 0);
 
     if (totalTxOutValues !== totalTxInValues) {
-        // If inputs != outputs, the difference is the fee.
-        // We just ensure outputs aren't GREATER than inputs (inflation check for normal tx)
         if (totalTxOutValues > totalTxInValues) {
             throw new ValidationError('totalTxOutValues > totalTxInValues in tx: ' + transaction.id, ValidationErrorCode.INSUFFICIENT_FUNDS, true);
         }
@@ -152,7 +141,6 @@ const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts:
         throw new ValidationError('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx), ValidationErrorCode.INVALID_COINBASE, true);
     }
 
-    // check for duplicate txIns. Each txIn can be included only once
     const txIns: TxIn[] = _(aTransactions)
         .map((tx) => tx.txIns)
         .flatten()
@@ -162,9 +150,7 @@ const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts:
         throw new ValidationError('duplicate txIns found in block transactions', ValidationErrorCode.DUPLICATE_TX, true);
     }
 
-    // all but coinbase transactions
     const normalTransactions: Transaction[] = aTransactions.slice(1);
-    // Explicitly check each transaction instead of reduce, so we can throw
     for (const tx of normalTransactions) {
         validateTransaction(tx, aUnspentTxOuts);
     }
@@ -213,10 +199,6 @@ const validateCoinbaseTx = (transaction: Transaction, blockIndex: number): boole
             return false;
         }
     } else if (transaction.txOuts[0].amount !== getCoinbaseAmount(blockIndex)) {
-        // Warning: This basic validation doesn't check if FEES were added correctly.
-        // It only checks if the base reward is at least present or matches exactly if we ignore fees for now.
-        // To properly validate fees + reward, we would need to sum the fees of all other txs in the block here.
-        // For this step, we will allow >= base reward to support fee inclusion which increases the output amount.
         if (transaction.txOuts[0].amount < getCoinbaseAmount(blockIndex)) {
             console.log('invalid coinbase amount in coinbase transaction');
             return false;
@@ -229,8 +211,6 @@ const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: Unsp
     const referencedUTxOut: UnspentTxOut =
         aUnspentTxOuts.find((uTxO) => uTxO.txOutId === txIn.txOutId && uTxO.txOutIndex === txIn.txOutIndex);
     if (referencedUTxOut == null) {
-        // Warning: This could happen if the node is not fully synced yet, so maybe we shouldn't ban immediately?
-        // But for a valid block, all inputs MUST be resolvable.
         throw new ValidationError('referenced txOut not found: ' + JSON.stringify(txIn), ValidationErrorCode.INSUFFICIENT_FUNDS, true);
     }
     const address = referencedUTxOut.address;
@@ -241,7 +221,6 @@ const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: Unsp
         const signatureArray = Buffer.from(txIn.signature, 'hex');
         const messageArray = Buffer.from(transaction.id, 'hex');
 
-        // Convert to Uint8Array
         const publicKey = new Uint8Array(publicKeyArray);
         const signature = new Uint8Array(signatureArray);
         const message = new Uint8Array(messageArray);
@@ -286,25 +265,20 @@ const signTxIn = (transaction: Transaction, txInIndex: number,
 
     try {
         const dilithium = getDilithiumSync();
-        // Private key is stored as JSON string
         const keyPair = JSON.parse(privateKey);
 
         const messageBuffer = Buffer.from(dataToSign, 'hex');
 
-        // Convert arrays back to Uint8Array
         const privateKeyUint8 = new Uint8Array(keyPair.privateKey);
         const messageUint8 = new Uint8Array(messageBuffer);
 
         const signature = dilithium.sign(messageUint8, privateKeyUint8, DILITHIUM_LEVEL);
-        // Handle case where signature is a wrapper object (e.g. { result, signature, signatureLength })
         if (typeof signature === 'object' && !Array.isArray(signature) && !(signature instanceof Uint8Array)) {
-            // Check if it has the 'signature' property as seen in logs
             if ('signature' in signature) {
                 // @ts-ignore
                 return Buffer.from(signature.signature).toString('hex');
             }
 
-            // Fallback for other object types (though unlikely now)
             const sigArray = _.values(signature);
             return Buffer.from(sigArray as any).toString('hex');
         }
@@ -346,9 +320,7 @@ const processTransactions = (aTransactions: Transaction[], aUnspentTxOuts: Unspe
 
 const getPublicKey = (aPrivateKey: string): string => {
     try {
-        // Private key is stored as JSON string containing both keys
         const keyPair = JSON.parse(aPrivateKey);
-        // Convert array back to Uint8Array and then to hex
         return Buffer.from(keyPair.publicKey).toString('hex');
     } catch (error) {
         console.log('error getting public key: ' + error.message);
@@ -420,9 +392,7 @@ const isValidTransactionStructure = (transaction: Transaction) => {
     return true;
 };
 
-// valid address is a valid Dilithium public key (1472 bytes for Dilithium Level 2)
 const isValidAddress = (address: string): boolean => {
-    // Dilithium Level 2 public key is 1472 bytes
     if (address.length < 100) {
         console.log('invalid public key length (too short)');
         return false;
@@ -433,11 +403,8 @@ const isValidAddress = (address: string): boolean => {
         console.log('public key must contain only hex characters');
         return false;
     }
-    // Basic validation: check if buffer size matches expected Dilithium public key size
     try {
         const publicKeyBuffer = Buffer.from(address, 'hex');
-        // Dilithium Level 2 public key is 1472 bytes
-        // Was 1952 bytes for Dilithium3 in older/different version
         if (publicKeyBuffer.length !== 1472) {
             console.log('public key size mismatch. Expected 1472 bytes, got ' + publicKeyBuffer.length);
             return false;

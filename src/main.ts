@@ -153,13 +153,11 @@ const initHttpServer = (myHttpPort: number) => {
 };
 
 const initAutoMining = () => {
-    // 30 seconds interval to reduce CPU load drastically
     const interval = 30000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
 
     setInterval(async () => {
         try {
-            // Only mine if we have a stake (balance > 0)
             if (getAccountBalance() > 0) {
                 const newBlock = await generateNextBlock();
                 if (newBlock) {
@@ -172,7 +170,6 @@ const initAutoMining = () => {
     }, interval);
 };
 
-// Initialize Dilithium first, then genesis block, wallet and servers
 initDilithium().then(() => {
     initGenesisBlock();
     initWallet();
@@ -180,7 +177,6 @@ initDilithium().then(() => {
     initP2PServer(p2pPort);
     initAutoMining();
 
-    // Public Bootnodes (Official Entry Points)
     const bootNodes = ['ws://34.66.32.62:6001'];
     let peers = bootNodes;
 
@@ -189,7 +185,6 @@ initDilithium().then(() => {
         peers = [...peers, ...customPeers];
     }
 
-    // Remove duplicates
     peers = [...new Set(peers)];
 
     console.log('Connect to peers: ' + peers);
