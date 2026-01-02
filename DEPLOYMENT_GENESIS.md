@@ -4,18 +4,42 @@ Ce guide détaille comment déployer le **premier nœud** (Nœud Genesis) de vot
 
 ## 1. Création de la Machine Virtuelle (VM)
 
-1.  Connectez-vous à la [Console Google Cloud](https://console.cloud.google.com/).
-2.  Allez dans **Compute Engine** > **Instances de VM**.
-3.  Cliquez sur **Créer une instance**.
-4.  **Configuration recommandée :**
+Nous utiliserons **Google Cloud Platform (GCP)** pour ce guide, en profitant de l'offre gratuite (Free Tier) si possible.
+
+1.  **Accéder à la console** :
+    *   Connectez-vous à la [Console Google Cloud](https://console.cloud.google.com/).
+    *   Allez dans le menu **Compute Engine** > **Instances de VM**.
+    *   Cliquez sur le bouton **Créer une instance**.
+
+2.  **Configuration de base** :
     *   **Nom** : `naivecoin-node-1`
-    *   **Région** : Choisissez une région proche de vous (ou `us-central1`, `us-west1` pour le Free Tier).
-    *   **Type de machine** : `e2-micro` (2 vCPU, 1 Go de mémoire) suffit pour commencer.
-    *   **Disque de démarrage** : **Ubuntu** (22.04 LTS ou 20.04 LTS), 30 Go.
+    *   **Région** : Choisissez une région éligible au "Free Tier" (ex: `us-central1` (Iowa), `us-west1` (Oregon) ou `us-east1` (South Carolina)).
+    *   **Zone** : N'importe quelle zone dans la région (ex: `us-central1-a`).
+
+3.  **Configuration de la machine** :
+    *   **Série** : `E2`
+    *   **Type de machine** : `e2-micro` (2 vCPU, 1 Go de mémoire). C'est suffisant pour un petit nœud et fait partie de l'offre gratuite (sous conditions).
+
+4.  **Disque de démarrage (Boot Disk)** :
+    *   Cliquez sur **Modifier** dans la section "Disque de démarrage".
+    *   **Système d'exploitation** : `Ubuntu`
+    *   **Version** : `Ubuntu 22.04 LTS` (x86/64, amd64).
+    *   **Type de disque** : `Disque persistant standard`.
+    *   **Taille** : `30 Go` (L'offre gratuite inclut jusqu'à 30 Go).
+    *   Cliquez sur **Sélectionner**.
+
 5.  **Pare-feu (Firewall)** :
-    *   Cochez "Autoriser le trafic HTTP".
-    *   Cochez "Autoriser le trafic HTTPS".
-6.  Cliquez sur **Créer**.
+    *   Dans la section "Pare-feu", cochez :
+        *   [x] **Autoriser le trafic HTTP**
+        *   [x] **Autoriser le trafic HTTPS**
+    *   *Note : Cela configure les règles de base, nous ouvrirons les ports spécifiques (3001/6001) à l'étape suivante.*
+
+6.  **Networking (Optionnel mais recommandé - IP Fixe)** :
+    *   Dépliez **Options avancées** > **Mise en réseau**.
+    *   Sous **Interfaces réseau**, cliquez sur la flèche pour modifier l'interface par défaut.
+    *   Sous **Adresse IPv4 externe**, choisissez **Créer une adresse IP**. Donnez-lui un nom (ex: `ipv4-node-1`) et réservez-la. Cela évite que l'IP change au redémarrage.
+
+7.  Cliquez sur **Créer** en bas de page.
 
 ## 2. Ouverture des Ports
 

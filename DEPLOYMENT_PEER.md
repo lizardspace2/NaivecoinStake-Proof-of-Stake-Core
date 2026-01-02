@@ -3,11 +3,35 @@
 Ce guide explique comment ajouter des nœuds supplémentaires (Node 2, Node 3, etc.) à votre réseau pour le décentraliser.
 
 ## 1. Création de la Machine Virtuelle
-
-Répétez la création d'une VM standard (comme pour le nœud 1) :
-*   **OS** : Ubuntu 22.04 LTS
-*   **Nom suggéré** : `naivecoin-node-2`
-*   **Firewall** : Assurez-vous que les ports **3001** et **6001** sont ouverts (la même règle de pare-feu que pour le nœud 1 s'applique si vous êtes dans le même projet/réseau).
+ 
+Pour créer un nouveau nœud (pair), nous allons créer une nouvelle instance VM sur Google Cloud Platform (GCP).
+ 
+1.  **Accéder à la console** :
+    *   Allez dans **Compute Engine** > **Instances de VM**.
+    *   Cliquez sur **Créer une instance**.
+ 
+2.  **Configuration de base** :
+    *   **Nom** : `naivecoin-node-2` (ou node-3, etc.)
+    *   **Région** : Vous pouvez choisir la même région que le nœud 1 ou une différente pour plus de décentralisation (ex: `us-central1` si le nœud 1 est en `us-west1`).
+    *   **Type de machine** : `e2-micro` (Fait partie de l'offre gratuite).
+ 
+3.  **Disque de démarrage** :
+    *   **Système d'exploitation** : `Ubuntu`
+    *   **Version** : `Ubuntu 22.04 LTS` (x86/64, amd64).
+    *   **Taille** : `30 Go` (Disque persistant standard).
+ 
+4.  **Pare-feu (Firewall)** :
+    *   [x] Autoriser le trafic HTTP
+    *   [x] Autoriser le trafic HTTPS
+ 
+5.  **Networking (Optionnel - IP Fixe)** :
+    *   Comme pour le premier nœud, il est recommandé de réserver une IP statique.
+    *   **Options avancées** > **Mise en réseau** > **Interfaces réseau**.
+    *   **Adresse IPv4 externe** > **Créer une adresse IP** (ex: `ipv4-node-2`).
+ 
+6.  Cliquez sur **Créer**.
+ 
+*Note : Si vous utilisez le même projet GCP que le nœud 1, la règle de pare-feu ouvrant les ports 3001/6001 est déjà active pour tout le réseau, donc vous n'avez pas besoin de la recréer.*
 
 ## 2. Installation
 
