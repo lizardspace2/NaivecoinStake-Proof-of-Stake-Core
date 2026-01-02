@@ -1,50 +1,50 @@
-# Guide de Déploiement : Nœuds Pairs (Peer Nodes)
+# Deployment Guide: Peer Nodes
 
-Ce guide explique comment ajouter des nœuds supplémentaires (Node 2, Node 3, etc.) à votre réseau pour le décentraliser.
+This guide explains how to add additional nodes (Node 2, Node 3, etc.) to your network to decentralize it.
 
-## 1. Création de la Machine Virtuelle
- 
-Pour créer un nouveau nœud (pair), nous allons créer une nouvelle instance VM sur Google Cloud Platform (GCP).
- 
-1.  **Accéder à la console** :
-    *   Allez dans **Compute Engine** > **Instances de VM**.
-    *   Cliquez sur **Créer une instance**.
- 
-2.  **Configuration de base** :
-    *   **Nom** : `naivecoin-node-2` (ou node-3, etc.)
-    *   **Région** : Vous pouvez choisir la même région que le nœud 1 ou une différente pour plus de décentralisation (ex: `us-central1` si le nœud 1 est en `us-west1`).
-    *   **Type de machine** : `e2-micro` (Fait partie de l'offre gratuite).
- 
-3.  **Disque de démarrage** :
-    *   **Système d'exploitation** : `Ubuntu`
-    *   **Version** : `Ubuntu 22.04 LTS` (x86/64, amd64).
-    *   **Taille** : `30 Go` (Disque persistant standard).
- 
-4.  **Pare-feu (Firewall)** :
-    *   [x] Autoriser le trafic HTTP
-    *   [x] Autoriser le trafic HTTPS
- 
-5.  **Interfaces réseau (Pour une IP Fixe - Recommandé)** :
-    *   Dépliez la section **Options avancées** (en bas de page) > **Mise en réseau**.
-    *   Allez dans la sous-section **Interfaces réseau**.
-    *   *Note : Si vous voyez déjà les champs "Réseau", "Sous-réseau" etc., passez directement à la ligne suivante.*
-    *   Repérez le champ **Adresse IPv4 externe** (il indique probablement "Éphémère").
-    *   Cliquez sur le menu déroulant et choisissez **Créer une adresse IP**.
-        *   Nommez-la (ex: `ip-node-2`).
-        *   Cliquez sur **Réserver**.
-    *   **Niveau de service réseau** : Laissez sur `Premium`.
-    *   Cliquez sur **Terminé** (si le bouton est présent en bas du bloc réseau).
- 
-6.  Cliquez sur **Créer**.
- 
-*Note : Si vous utilisez le même projet GCP que le nœud 1, la règle de pare-feu ouvrant les ports 3001/6001 est déjà active pour tout le réseau, donc vous n'avez pas besoin de la recréer.*
+## 1. Creating the Virtual Machine
+
+To create a new node (peer), we will create a new VM instance on Google Cloud Platform (GCP).
+
+1.  **Access the console**:
+    *   Go to **Compute Engine** > **VM instances**.
+    *   Click **Create Instance**.
+
+2.  **Basic Configuration**:
+    *   **Name**: `naivecoin-node-2` (or node-3, etc.)
+    *   **Region**: You can choose the same region as Node 1 or a different one for more decentralization (e.g., `us-central1` if Node 1 is in `us-west1`).
+    *   **Machine type**: `e2-micro` (Part of the free tier).
+
+3.  **Boot Disk**:
+    *   **Operating System**: `Ubuntu`
+    *   **Version**: `Ubuntu 22.04 LTS` (x86/64, amd64).
+    *   **Size**: `30 GB` (Standard persistent disk).
+
+4.  **Firewall**:
+    *   [x] Allow HTTP traffic
+    *   [x] Allow HTTPS traffic
+
+5.  **Network Interfaces (For a Static IP - Recommended)**:
+    *   Expand the **Advanced options** section (at the bottom of the page) > **Networking**.
+    *   Go to the **Network interfaces** subsection.
+    *   *Note: If you already see "Network", "Subnet" fields etc., skip to the next line.*
+    *   Locate the **External IPv4 address** field (it likely says "Ephemeral").
+    *   Click the dropdown menu and choose **Create IP address**.
+        *   Name it (e.g., `ip-node-2`).
+        *   Click **Reserve**.
+    *   **Network Service Tier**: Leave on `Premium`.
+    *   Click **Done** (if the button is present at the bottom of the network block).
+
+6.  Click **Create**.
+
+*Note: If you are using the same GCP project as Node 1, the firewall rule opening ports 3001/6001 is already active for the entire network, so you don't need to recreate it.*
 
 ## 2. Installation
 
-Connectez-vous en **SSH** et installez Docker et le projet :
+Connect via **SSH** and install Docker and the project:
 
 ```bash
-# 1. Mise à jour et prérequis
+# 1. Update and prerequisites
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg lsb-release git nano
 
@@ -57,37 +57,37 @@ echo \
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# 3. Cloner le dépôt
+# 3. Clone the repository
 git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
 cd NaivecoinStake-Proof-of-Stake-Core
 ```
 
-## 3. Configuration et Lancement
+## 3. Configuration and Launch
 
-Les nœuds pairs n'ont **pas** besoin de la clé Genesis. Ils généreront leur propre portefeuille automatiquement.
+Peer nodes do **not** need the Genesis key. They will generate their own wallet automatically.
 
-Le fichier `docker-compose-peer.yml` est pré-configuré pour :
-1.  Lancer le nœud sur les ports 3001/6001.
-2.  Se connecter automatiquement au réseau (via le Bootnode public ou en découvrant les pairs).
+The `docker-compose-peer.yml` file is pre-configured to:
+1.  Launch the node on ports 3001/6001.
+2.  Connect automatically to the network (via the public Bootnode or by discovering peers).
 
-**Lancer le nœud :**
+**Launch the node:**
 
 ```bash
 sudo docker compose -f docker-compose-peer.yml up -d --build
 ```
 
-> **Note** : Le nœud se connecte automatiquement au Bootnode public. Vous n'avez pas besoin de modifier la configuration `PEERS` sauf si vous souhaitez vous connecter à un réseau privé spécifique.
+> **Note**: The node automatically connects to the public Bootnode. You do not need to modify the `PEERS` configuration unless you want to connect to a specific private network.
 
-## 4. Vérification
+## 4. Verification
 
-Vérifiez que le nœud se synchronise :
+Verify that the node is syncing:
 
-1.  **Logs** :
+1.  **Logs**:
     ```bash
     sudo docker compose -f docker-compose-peer.yml logs -f
     ```
-    Recherchez `connection to peer`.
+    Look for `connection to peer`.
 
-2.  **API** :
-    Allez sur `http://IP_NODE_2:3001/blocks`.
-    Vous devriez voir les mêmes blocs que sur le Nœud 1.
+2.  **API**:
+    Go to `http://NODE_2_IP:3001/blocks`.
+    You should see the same blocks as on Node 1.

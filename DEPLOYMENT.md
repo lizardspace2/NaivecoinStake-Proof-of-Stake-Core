@@ -1,159 +1,157 @@
 
-# Guide de Déploiement : NaivecoinStake sur Google Cloud Platform (GCP)
+# Deployment Guide: NaivecoinStake on Google Cloud Platform (GCP)
 
-Ce guide détaille étape par étape comment déployer votre nœud NaivecoinStake sur l'offre gratuite ("Free Tier") de Google Cloud Platform.
+This guide details step-by-step how to deploy your NaivecoinStake node on the Google Cloud Platform Free Tier.
 
-## 1. Création de la Machine Virtuelle (VM)
+## 1. Creating the Virtual Machine (VM)
 
-L'offre gratuite de GCP inclut une instance `e2-micro` dans certaines régions spécifiques.
+The GCP Free Tier includes an `e2-micro` instance in specific regions.
 
-1.  Connectez-vous à la [Console Google Cloud](https://console.cloud.google.com/).
-2.  Allez dans **Compute Engine** > **Instances de VM**.
-3.  Cliquez sur **Créer une instance**.
-4.  **Configuration Importante (pour la gratuité) :**
-    *   **Nom** : `naivecoin-node-1`
-    *   **Région** : Choisissez `us-central1`, `us-west1` ou `us-east1` (Seules ces régions sont éligibles au Free Tier).
-    *   **Type de machine** : `e2-micro` (2 vCPU, 1 Go de mémoire).
-    *   **Disque de démarrage** : Cliquez sur "Modifier".
-        *   Système d'exploitation : **Ubuntu** (Choisir la version `22.04 LTS` ou `20.04 LTS`).
-        *   Type de disque : **Disque persistant standard** (Standard persistent disk).
-        *   Taille : **30 Go** (Maximum inclus dans l'offre gratuite).
-5.  **Pare-feu (Firewall)** :
-    *   Cochez "Autoriser le trafic HTTP".
-    *   Cochez "Autoriser le trafic HTTPS".
-6.  Cliquez sur **Créer**.
+1.  Log in to the [Google Cloud Console](https://console.cloud.google.com/).
+2.  Go to **Compute Engine** > **VM instances**.
+3.  Click on **Create Instance**.
+4.  **Important Configuration (for free tier):**
+    *   **Name**: `naivecoin-node-1`
+    *   **Region**: Choose `us-central1`, `us-west1` or `us-east1` (Only these regions are eligible for the Free Tier).
+    *   **Machine type**: `e2-micro` (2 vCPU, 1 GB memory).
+    *   **Boot disk**: Click "Change".
+        *   Operating System: **Ubuntu** (Choose version `22.04 LTS` or `20.04 LTS`).
+        *   Disk type: **Standard persistent disk**.
+        *   Size: **30 GB** (Maximum included in the free tier).
+5.  **Firewall**:
+    *   Check "Allow HTTP traffic".
+    *   Check "Allow HTTPS traffic".
+6.  Click **Create**.
 
-## 2. Configuration du Pare-feu (Ouvrir les ports)
+## 2. Firewall Configuration (Opening Ports)
 
-Par défaut, seuls les ports 80 (HTTP) et 443 (HTTPS) sont ouverts. Il faut ouvrir le port **3001** (API) et **6001** (P2P).
+By default, only ports 80 (HTTP) and 443 (HTTPS) are open. You need to open port **3001** (API) and **6001** (P2P).
 
-1.  Dans la console, cherchez "Règles de pare-feu" (Firewall policies) ou allez dans **Réseau VPC** > **Pare-feu**.
-2.  Cliquez sur **Créer une règle de pare-feu**.
-3.  **Nom** : `allow-naivecoin-ports`
-4.  **Cibles** : `Toutes les instances du réseau`
-5.  **Plage d'adresses IP source** : `0.0.0.0/0` (Autorise tout le monde).
-6.  **Protocoles et ports** :
-    *   Cochez `tcp` et entrez : `3001,6001`
-7.  Cliquez sur **Créer**.
+1.  In the console, search for "Firewall policies" or go to **VPC network** > **Firewall**.
+2.  Click **Create Firewall Rule**.
+3.  **Name**: `allow-naivecoin-ports`
+4.  **Targets**: `All instances in the network`
+5.  **Source IP ranges**: `0.0.0.0/0` (Allows everyone).
+6.  **Protocols and ports**:
+    *   Check `tcp` and enter: `3001,6001`
+7.  Click **Create**.
 
-### Alternative : Via Cloud Shell
+### Alternative: Via Cloud Shell
 
-Si vous préférez la ligne de commande, ouvrez le **Cloud Shell** (icône de terminal en haut à droite de la console) et lancez :
+If you prefer the command line, open the **Cloud Shell** (terminal icon at the top right of the console) and run:
 
 ```bash
 gcloud compute firewall-rules create allow-naivecoin-ports \
     --allow tcp:3001,tcp:6001 \
     --source-ranges 0.0.0.0/0 \
-    --description="Autoriser les ports API et P2P pour NaivecoinStake"
+    --description="Allow API and P2P ports for NaivecoinStake"
 ```
 
-## 3. Installation et Lancement du Nœud
+## 3. Node Installation and Launch
 
-1.  Retournez dans **Compute Engine** > **Instances de VM**.
-2.  Cliquez sur le bouton **SSH** à côté de votre instance pour ouvrir un terminal dans votre navigateur.
-3.  Exécutez les commandes suivantes une par une :
+1.  Return to **Compute Engine** > **VM instances**.
+2.  Click the **SSH** button next to your instance to open a terminal in your browser.
+3.  Run the following commands one by one:
 
-### A. Installer Docker et Git
+### A. Install Docker and Git
 ```bash
-# 1. Mettre à jour et installer les prérequis (dont 'nano' pour éditer les fichiers)
+# 1. Update and install prerequisites (including 'nano' to edit files)
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg lsb-release git nano
 
-# 2. Ajouter la clé GPG officielle de Docker
+# 2. Add Docker's official GPG key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# 3. Configurer le dépôt Docker
+# 3. Configure the Docker repository
 echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# 4. Installer Docker Engine
+# 4. Install Docker Engine
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# 5. Vérifier que Docker fonctionne
+# 5. Verify that Docker works
 sudo docker run hello-world
 ```
 
-### B. Configurer et Lancer le Nœud
+### B. Configure and Launch the Node
 
-1.  **Cloner votre dépôt**
-    (Remplacez URL_DU_REPO par l'URL de votre repo GitHub/GitLab)
+1.  **Clone your repository**
+    (Replace URL_OF_REPO with your GitHub/GitLab repo URL)
     ```bash
     git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
     cd NaivecoinStake-Proof-of-Stake-Core
     ```
 
-2.  **Configuration de production**
-    Le fichier `docker-compose.prod.yml` est déjà inclus dans le dépôt. Il définit une installation pour un seul nœud.
+2.  **Production configuration**
+    The `docker-compose.prod.yml` file is already included in the repository. It defines a single-node installation.
 
-    Vous pouvez vérifier son contenu :
+    You can check its content:
     ```bash
     cat docker-compose.prod.yml
     ```
 
-3.  **Configurer la Clé Genesis (Méthode recommandée : Importation)**
-    Ne copiez-collez pas le texte, le fichier est trop gros et ferait planter le terminal. Utilisez l'outil d'importation.
+3.  **Configure the Genesis Key (Recommended Method: Import)**
+    Do not copy-paste the text, the file is too large and would crash the terminal. Use the import tool.
 
-    1.  Dans la fenêtre SSH (navigateur), cliquez sur le bouton **"Importer un fichier"** (Upload file) situé dans le menu en haut à droite (roue dentée ou icône "flèche vers le haut").
-    2.  Sélectionnez votre fichier `genesis_key.json` sur votre ordinateur.
-    3.  Une fois le transfert terminé, déplacez-le dans le dossier du projet :
+    1.  In the SSH window (browser), click the **"Upload file"** button located in the top right menu (gear or "up arrow" icon).
+    2.  Select your `genesis_key.json` file on your computer.
+    3.  Once the transfer is complete, move it to the project folder:
     ```bash
     mv ~/genesis_key.json ~/NaivecoinStake-Proof-of-Stake-Core/
     ```
-    (Si la commande échoue, faites `ls` pour voir où est le fichier).
+    (If the command fails, do `ls` to see where the file is).
 
-4.  **Lancer le nœud**
-    Utilisez le fichier de configuration de production pour lancer le nœud :
+4.  **Launch the node**
+    Use the production configuration file to launch the node:
     ```bash
     sudo docker compose -f docker-compose.prod.yml up -d --build
     ```
 
-    *   `-f docker-compose.prod.yml` : Utilise notre configuration spécifique.
-    *   `-d` : Mode "détaché" (tourne en arrière-plan).
-    *   `--build` : Construit l'image Docker.
+    *   `-f docker-compose.prod.yml`: Uses our specific configuration.
+    *   `-d`: "Detached" mode (runs in the background).
+    *   `--build`: Builds the Docker image.
 
-## 4. Vérification
+## 4. Verification
 
-Une fois lancé, vérifiez que tout fonctionne :
+Once launched, verify that everything is working:
 
-1.  Récupérez l'**IP Externe** de votre VM dans la console Google Cloud.
-2.  Dans votre navigateur, allez sur : `http://IP_EXTERNE:3001/blocks`
-3.  Vous devriez voir le bloc Genesis avec vos 100 millions de coins.
+1.  Get the **External IP** of your VM in the Google Cloud console.
+2.  In your browser, go to: `http://EXTERNAL_IP:3001/blocks`
+3.  You should see the Genesis block with your 100 million coins.
 
-## 5. Maintenance et Logs
+## 5. Maintenance and Logs
 
-- **Voir les logs** :
+- **View logs**:
   ```bash
   sudo docker compose -f docker-compose.prod.yml logs -f
   ```
-- **Arrêter le nœud** :
+- **Stop the node**:
   ```bash
   sudo docker compose -f docker-compose.prod.yml down
   ```
-- **Mettre à jour le code** :
+- **Update the code**:
   ```bash
   git pull
   sudo docker compose -f docker-compose.prod.yml up -d --build
   ```
 
+## 6. Create a Test Network
 
+### Option A: On the same machine (Recommended for quick testing)
 
-## 6. Créer un réseau de test
+To test the blockchain with multiple peers on **the same machine** (without paying for an extra VM), you can create a multi-node configuration.
 
-### Option A : Sur la même machine (Recommandé pour test rapide)
-
-Pour tester la blockchain avec plusieurs pairs sur **la même machine** (sans payer de VM supplémentaire), vous pouvez créer une configuration multi-nœuds.
-
-1.  **Créer la configuration multi-nœuds**
-    Créez un fichier `docker-compose.multi.yml` :
+1.  **Create the multi-node configuration**
+    Create a `docker-compose.multi.yml` file:
     ```bash
     nano docker-compose.multi.yml
     ```
-    Collez le contenu suivant. Cela crée :
-    *   **node1** : Votre nœud principal (Ports 3001/6001) avec la clé Genesis.
-    *   **node2** : Un nouveau nœud vierge (Ports 3002/6002) qui se connecte au node1.
+    Paste the following content. This creates:
+    *   **node1**: Your main node (Ports 3001/6001) with the Genesis key.
+    *   **node2**: A new blank node (Ports 3002/6002) that connects to node1.
 
     ```yaml
     version: '3'
@@ -187,55 +185,55 @@ Pour tester la blockchain avec plusieurs pairs sur **la même machine** (sans pa
           - node1
     ```
 
-2.  **Lancer le réseau**
-    Il faut d'abord arrêter le nœud simple s'il tourne :
+2.  **Launch the network**
+    First, stop the single node if it's running:
     ```bash
     sudo docker compose -f docker-compose.prod.yml down
     ```
-    Puis lancer le multi-nœud :
+    Then launch the multi-node:
     ```bash
     sudo docker compose -f docker-compose.multi.yml up -d --build
     ```
 
-3.  **Vérification**
-    *   **Node 1** : `http://IP_EXTERNE:3001/peers` (Doit montrer le node2 connecté)
-    *   **Node 2** : `http://IP_EXTERNE:3002/blocks` (Doit se synchroniser et avoir le bloc Genesis)
+3.  **Verification**
+    *   **Node 1**: `http://EXTERNAL_IP:3001/peers` (Should show node2 connected)
+    *   **Node 2**: `http://EXTERNAL_IP:3002/blocks` (Should sync and have the Genesis block)
 
-    *Note : Si vous utilisez le pare-feu, assurez-vous d'ouvrir aussi les ports 3002 et 6002 si vous voulez y accéder depuis l'extérieur.*
+    *Note: If you are using the firewall, make sure to also open ports 3002 and 6002 if you want to access them from outside.*
 
-### Option B : Sur une seconde machine virtuelle (Préférence Utilisateur)
+### Option B: On a second virtual machine (User Preference)
 
-Cette méthode est plus proche d'un réseau réel décentralisé.
-*Attention : La deuxième VM peut engendrer des coûts si votre quota gratuit est dépassé.*
+This method is closer to a real decentralized network.
+*Warning: The second VM may incur costs if your free server quota is exceeded.*
 
-1.  **Créer la seconde VM (`naivecoin-node-2`)**
-    *   Suivez l'étape 1 de ce guide pour créer une nouvelle instance.
-    *   Appliquez la **même règle de pare-feu** (le tag `http-server` ou la règle `allow-naivecoin-ports` s'applique à tout le réseau si configurée sur `0.0.0.0/0`).
+1.  **Create the second VM (`naivecoin-node-2`)**
+    *   Follow step 1 of this guide to create a new instance.
+    *   Apply the **same firewall rule** (the `http-server` tag or `allow-naivecoin-ports` rule applies to the entire network if configured on `0.0.0.0/0`).
 
-2.  **Installer le logiciel**
-    *   Connectez-vous en SSH à `naivecoin-node-2`.
-    *   Suivez l'étape 3.A pour installer Docker et Git.
-    *   Clonez le dépôt (Step 3.B.1).
+2.  **Install the software**
+    *   SSH into `naivecoin-node-2`.
+    *   Follow step 3.A to install Docker and Git.
+    *   Clone the repository (Step 3.B.1).
 
-3.  **Configurer le Node 2**
-    Le dépôt contient un fichier **déjà configuré** pour le réseau public : `docker-compose-peer.yml`.
+3.  **Configure Node 2**
+    The repository contains a file **already configured** for the public network: `docker-compose-peer.yml`.
     
-    Grâce à la mise à jour "Bootnode", le nœud se connectera **automatiquement** au réseau principal sans aucune configuration d'IP.
+    Thanks to the "Bootnode" update, the node will **automatically** connect to the main network without any IP configuration.
 
-    Vous n'avez **rien à faire** à cette étape !
+    You have **nothing to do** at this step!
 
-4.  **Lancer le Node 2**
+4.  **Launch Node 2**
     ```bash
     sudo docker compose -f docker-compose-peer.yml up -d --build
     ```
 
-5.  **Vérification**
-    Consultez les logs pour voir la connexion :
+5.  **Verification**
+    Check the logs to see the connection:
     ```bash
     sudo docker compose -f docker-compose-peer.yml logs -f
     ```
-    Vous devriez voir `connection to peer: ws://IP_NODE_1:6001`.
+    You should see `connection to peer: ws://NODE_1_IP:6001`.
 
 ---
 
-**Note** : L'IP externe d'une VM peut changer si vous l'arrêtez/redémarrez. Pour la production, il est conseillé de réserver une **Adresse IP statique externe** dans la section "Réseau VPC > Adresses IP" et de l'attacher à votre VM.
+**Note**: The external IP of a VM can change if you stop/restart it. For production, it is advisable to reserve a **Static External IP Address** in the "VPC Network > IP Addresses" section and attach it to your VM.

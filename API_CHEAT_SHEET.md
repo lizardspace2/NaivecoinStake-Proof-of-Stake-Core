@@ -1,22 +1,22 @@
 # NaivecoinStake API Cheat Sheet
 
-Voici une liste des commandes les plus utiles pour interagir avec votre nœud NaivecoinStake via le terminal.
+Here is a list of the most useful commands to interact with your NaivecoinStake node via the terminal.
 
-## 👛 Portefeuille & Balance
+## 👛 Wallet & Balance
 
-### Voir votre adresse (Clé Publique)
+### View your address (Public Key)
 ```bash
 curl http://localhost:3001/address
 ```
 
-### Voir votre solde (Balance)
-Afficher le solde du nœud courant.
+### View your balance
+Display the balance of the current node.
 ```bash
 curl http://localhost:3001/balance
 ```
 
-### Voir vos UTXO (Unspent Transaction Outputs)
-Détail des pièces que vous possédez.
+### View your UTXOs (Unspent Transaction Outputs)
+Detail of the coins you own.
 ```bash
 curl http://localhost:3001/myUnspentTransactionOutputs
 ```
@@ -25,101 +25,101 @@ curl http://localhost:3001/myUnspentTransactionOutputs
 
 ## 💸 Transactions
 
-### Envoyer des coins
-Remplacer `ADRESSE_DESTINATAIRE` et `10` par le montant voulu.
+### Send coins
+Replace `RECIPIENT_ADDRESS` and `10` with the desired amount.
 ```bash
-curl -H "Content-type:application/json" --data '{"address": "ADRESSE_DESTINATAIRE", "amount": 10}' http://localhost:3001/sendTransaction
+curl -H "Content-type:application/json" --data '{"address": "RECIPIENT_ADDRESS", "amount": 10}' http://localhost:3001/sendTransaction
 ```
 
-### Voir une transaction spécifique
+### View a specific transaction
 ```bash
-curl http://localhost:3001/transaction/ID_TRANSACTION
+curl http://localhost:3001/transaction/TRANSACTION_ID
 ```
 
-### Voir la Pool de transactions (en attente)
+### View the Transaction Pool (pending)
 ```bash
 curl http://localhost:3001/transactionPool
 ```
 
 ---
 
-## ⛓️ Blockchain & Blocs
+## ⛓️ Blockchain & Blocks
 
-### Voir toute la blockchain
-⚠️ Peut être très lourd si la chaîne est longue.
+### View the entire blockchain
+⚠️ Can be very large if the chain is long.
 ```bash
 curl http://localhost:3001/blocks
 ```
 
-### Voir un bloc spécifique (par Hash)
+### View a specific block (by Hash)
 ```bash
-curl http://localhost:3001/block/HASH_DU_BLOC
+curl http://localhost:3001/block/BLOCK_HASH
 ```
 
-### Voir la hauteur de la chaîne (Nombre de blocs)
-Utilise `jq` pour compter les éléments retournés par `/blocks`.
+### View chain height (Number of blocks)
+Uses `jq` to count items returned by `/blocks`.
 ```bash
-# Avec jq (recommandé)
+# With jq (recommended)
 curl -s http://localhost:3001/blocks | jq length
 
-# Sans jq (approximation avec grep)
+# Without jq (approximation with grep)
 curl -s http://localhost:3001/blocks | grep -o "hash" | wc -l
 ```
 
-### Miner un bloc (Manuellement)
-Force le nœud à essayer de miner un bloc immédiatement.
+### Mint a block (Manually)
+Forces the node to try mining a block immediately.
 ```bash
 curl -H "Content-type:application/json" --data '{}' http://localhost:3001/mintBlock
 ```
 
 ---
 
-## 🌐 Réseau (P2P)
+## 🌐 Network (P2P)
 
-### Voir les pairs connectés
-Liste les adresses IP des autres nœuds auxquels vous êtes connecté.
+### View connected peers
+Lists the IP addresses of other nodes you are connected to.
 ```bash
 curl http://localhost:3001/peers
 ```
 
-### Compter le nombre de pairs
+### Count the number of peers
 ```bash
 curl -s http://localhost:3001/peers | jq length
 ```
 
-### Ajouter un pair manuellement
+### Add a peer manually
 ```bash
-curl -H "Content-type:application/json" --data '{"peer": "ws://IP_DU_PEER:6001"}' http://localhost:3001/addPeer
+curl -H "Content-type:application/json" --data '{"peer": "ws://PEER_IP:6001"}' http://localhost:3001/addPeer
 ```
 
 ---
 
 ## ⚙️ Administration
 
-### Arrêter le nœud (Stop)
+### Stop the node
 ```bash
 curl -H "Content-type:application/json" --data '{}' http://localhost:3001/stop
 ```
 
 ---
 
-## 🛠️ Commandes Avancées / Utilitaires
+## 🛠️ Advanced Commands / Utilities
 
-### Surveiller l'état du nœud (Monitoring)
-Affiche la hauteur de bloc, le nombre de pairs et le solde toutes les 2 secondes.
-(Nécessite `watch`, `curl` et `jq`)
+### Monitor node status
+Displays block height, number of peers, and balance every 2 seconds.
+(Requires `watch`, `curl`, and `jq`)
 ```bash
-watch -n 2 "echo 'Blocs:' \$(curl -s http://localhost:3001/blocks | jq length) && echo 'Pairs:' \$(curl -s http://localhost:3001/peers | jq length) && echo 'Solde:' \$(curl -s http://localhost:3001/balance | jq .balance)"
+watch -n 2 "echo 'Blocks:' \$(curl -s http://localhost:3001/blocks | jq length) && echo 'Peers:' \$(curl -s http://localhost:3001/peers | jq length) && echo 'Balance:' \$(curl -s http://localhost:3001/balance | jq .balance)"
 ```
 
-### Vérifier le solde de n'importe quelle adresse
-Remplacez `ADRESSE` par la clé publique à vérifier.
+### Check the balance of any address
+Replace `ADDRESS` with the public key to check.
 ```bash
-curl -s http://localhost:3001/address/ADRESSE | jq '[.unspentTxOuts[].amount] | add'
+curl -s http://localhost:3001/address/ADDRESS | jq '[.unspentTxOuts[].amount] | add'
 ```
 
-### Simuler un bloc avec transaction (Minting Spécial)
-Génère un bloc contenant une transaction spécifique (utile pour debug/tests).
+### Simulate a block with transaction (Special Minting)
+Generates a block containing a specific transaction (useful for debug/tests).
 ```bash
-curl -H "Content-type:application/json" --data '{"address": "DESTINATAIRE", "amount": 100}' http://localhost:3001/mintTransaction
+curl -H "Content-type:application/json" --data '{"address": "RECIPIENT", "amount": 100}' http://localhost:3001/mintTransaction
 ```
