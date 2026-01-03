@@ -3,7 +3,8 @@ import * as express from 'express';
 import * as _ from 'lodash';
 import {
     Block, generateNextBlock, generatenextBlockWithTransaction, generateRawNextBlock, getAccountBalance,
-    getBlockchain, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction, initGenesisBlock
+    getBlockchain, getBlockHeaders, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction, initGenesisBlock,
+    getTotalSupply, getAllBalances
 } from './blockchain';
 import { connectToPeers, getSockets, initP2PServer } from './p2p';
 import { UnspentTxOut } from './transaction';
@@ -33,6 +34,18 @@ const initHttpServer = (myHttpPort: number) => {
         res.send(block);
     });
 
+    app.get('/block/index/:index', (req, res) => {
+        const block = _.find(getBlockchain(), { 'index': parseInt(req.params.index) });
+        res.send(block);
+    });
+
+    app.get('/blocks/:from/:to', (req, res) => {
+        const from = parseInt(req.params.from);
+        const to = parseInt(req.params.to);
+        const blocks = getBlockHeaders(from, to);
+        res.send(blocks);
+    });
+
     app.get('/transaction/:id', (req, res) => {
         const tx = _(getBlockchain())
             .map((blocks) => blocks.data)
@@ -49,6 +62,14 @@ const initHttpServer = (myHttpPort: number) => {
 
     app.get('/unspentTransactionOutputs', (req, res) => {
         res.send(getUnspentTxOuts());
+    });
+
+    app.get('/totalSupply', (req, res) => {
+        res.send({ 'supply': getTotalSupply() });
+    });
+
+    app.get('/addresses', (req, res) => {
+        res.send(getAllBalances());
     });
 
     app.get('/myUnspentTransactionOutputs', (req, res) => {

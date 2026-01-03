@@ -9,6 +9,27 @@ Here is a list of the most useful commands to interact with your NaivecoinStake 
 curl http://localhost:3001/address
 ```
 
+### View Address Details (UTXOs)
+Get the list of Unspent Transaction Outputs (UTXOs) for a specific address. This represents the "state" of the address on the blockchain.
+
+```bash
+curl http://localhost:3001/address/ADDRESS_PUBLIC_KEY
+```
+
+**Response Format:**
+```json
+{
+  "unspentTxOuts": [
+    {
+      "txOutId": "TRANSACTION_ID",
+      "txOutIndex": 0,
+      "address": "ADDRESS_PUBLIC_KEY",
+      "amount": 50
+    }
+  ]
+}
+```
+
 ### View your balance
 Display the balance of the current node.
 ```bash
@@ -32,8 +53,30 @@ curl -H "Content-type:application/json" --data '{"address": "RECIPIENT_ADDRESS",
 ```
 
 ### View a specific transaction
+Get detailed information about a transaction by its ID (Hash).
+
 ```bash
 curl http://localhost:3001/transaction/TRANSACTION_ID
+```
+
+**Response Format:**
+```json
+{
+  "id": "TRANSACTION_ID",
+  "txIns": [
+    {
+      "txOutId": "PREVIOUS_TRANSACTION_ID",
+      "txOutIndex": 0,
+      "signature": "SIGNATURE_STRING"
+    }
+  ],
+  "txOuts": [
+    {
+      "address": "RECIPIENT_ADDRESS",
+      "amount": 50
+    }
+  ]
+}
 ```
 
 ### View the Transaction Pool (pending)
@@ -90,6 +133,44 @@ curl -s http://localhost:3001/peers | jq length
 ### Add a peer manually
 ```bash
 curl -H "Content-type:application/json" --data '{"peer": "ws://PEER_IP:6001"}' http://localhost:3001/addPeer
+```
+
+---
+
+## 🔍 Blockchain Explorer API
+
+These endpoints are optimized for building a blockchain explorer.
+
+### Get Blocks (Pagination)
+Retrieve a range of blocks (headers only, no transactions) for efficient display.
+
+```bash
+curl http://localhost:3001/blocks/START_INDEX/END_INDEX
+```
+Example: Get blocks 0 to 10
+```bash
+curl http://localhost:3001/blocks/0/10
+```
+
+### Get Block by Index (Height)
+Retrieve full block details using its height index.
+
+```bash
+curl http://localhost:3001/block/index/BLOCK_INDEX
+```
+
+### Total Supply
+Get the total number of coins currently in circulation.
+
+```bash
+curl http://localhost:3001/totalSupply
+```
+
+### Address Distribution (Rich List)
+Get a list of all addresses and their current balances.
+
+```bash
+curl http://localhost:3001/addresses
 ```
 
 ---

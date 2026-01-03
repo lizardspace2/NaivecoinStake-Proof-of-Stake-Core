@@ -487,6 +487,23 @@ const handleReceivedTransaction = (transaction: Transaction) => {
     addToTransactionPool(transaction, getUnspentTxOuts());
 };
 
+const getTotalSupply = (): number => {
+    return getUnspentTxOuts()
+        .map((uTxO) => uTxO.amount)
+        .reduce((a, b) => a + b, 0);
+};
+
+const getAllBalances = (): object => {
+    const balances = {};
+    getUnspentTxOuts().forEach((uTxO) => {
+        if (!balances[uTxO.address]) {
+            balances[uTxO.address] = 0;
+        }
+        balances[uTxO.address] += uTxO.amount;
+    });
+    return balances;
+};
+
 export {
     Block, getBlockchain, getUnspentTxOuts, getLatestBlock, sendTransaction,
     generateRawNextBlock, generateNextBlock, generatenextBlockWithTransaction,
@@ -497,5 +514,6 @@ export {
     addBlockToChain,
     getCumulativeDifficulty,
     initGenesisBlock,
-    getBlockHeaders, isValidBlockHeader
+    getBlockHeaders, isValidBlockHeader,
+    getTotalSupply, getAllBalances
 };
