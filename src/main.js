@@ -141,12 +141,10 @@ const initHttpServer = (myHttpPort) => {
     });
 };
 const initAutoMining = () => {
-    // 30 seconds interval to reduce CPU load drastically
     const interval = 30000;
     console.log(`Starting auto-mining with ${interval}ms interval`);
     setInterval(() => __awaiter(this, void 0, void 0, function* () {
         try {
-            // Only mine if we have a stake (balance > 0)
             if (blockchain_1.getAccountBalance() > 0) {
                 const newBlock = yield blockchain_1.generateNextBlock();
                 if (newBlock) {
@@ -159,21 +157,18 @@ const initAutoMining = () => {
         }
     }), interval);
 };
-// Initialize Dilithium first, then genesis block, wallet and servers
 wallet_1.initDilithium().then(() => {
     blockchain_1.initGenesisBlock();
     wallet_1.initWallet();
     initHttpServer(httpPort);
     p2p_1.initP2PServer(p2pPort);
     initAutoMining();
-    // Public Bootnodes (Official Entry Points)
     const bootNodes = ['ws://34.66.32.62:6001'];
     let peers = bootNodes;
     if (process.env.PEERS) {
         const customPeers = process.env.PEERS.split(',');
         peers = [...peers, ...customPeers];
     }
-    // Remove duplicates
     peers = [...new Set(peers)];
     console.log('Connect to peers: ' + peers);
     peers.forEach((peer) => {

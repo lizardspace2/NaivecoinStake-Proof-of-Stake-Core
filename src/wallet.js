@@ -13,35 +13,26 @@ const _ = require("lodash");
 const DilithiumModule = require("dilithium-crystals-js");
 const transaction_1 = require("./transaction");
 const privateKeyLocation = process.env.PRIVATE_KEY || 'node/wallet/private_key';
-// Cache for Dilithium instance to avoid repeated initialization
 let dilithiumInstance = null;
-// Initialize Dilithium instance (synchronous wrapper)
 const getDilithium = () => {
     if (dilithiumInstance === null) {
-        // dilithium-crystals-js exports a Promise, we need to handle it
-        // For now, we'll use a synchronous approach by storing the promise result
         throw new Error('Dilithium not initialized. Call initDilithium() first.');
     }
     return dilithiumInstance;
 };
-// Initialize Dilithium (should be called at startup)
 const initDilithium = () => __awaiter(this, void 0, void 0, function* () {
     if (dilithiumInstance === null) {
         dilithiumInstance = yield DilithiumModule;
     }
 });
 exports.initDilithium = initDilithium;
-// Synchronous version that uses cached instance
 const getDilithiumSync = () => {
     if (dilithiumInstance === null) {
-        // Try to get it synchronously - this will fail if not initialized
-        // In production, you'd want to ensure initDilithium is called at startup
         throw new Error('Dilithium not initialized. Ensure initDilithium() was called.');
     }
     return dilithiumInstance;
 };
 exports.getDilithiumSync = getDilithiumSync;
-// Dilithium level 2 (CRYPTO_PUBLICKEYBYTES: 1472)
 const DILITHIUM_LEVEL = 2;
 exports.DILITHIUM_LEVEL = DILITHIUM_LEVEL;
 const getPrivateFromWallet = () => {
@@ -51,16 +42,11 @@ const getPrivateFromWallet = () => {
 exports.getPrivateFromWallet = getPrivateFromWallet;
 const getPublicFromWallet = () => {
     const privateKey = getPrivateFromWallet();
-    // Private key is stored as base64 JSON string containing both keys
-    // Format: {"publicKey": [...], "privateKey": [...]}
     try {
         const keyPair = JSON.parse(privateKey);
-        // Convert Uint8Array to hex string
         return Buffer.from(keyPair.publicKey).toString('hex');
     }
     catch (error) {
-        // Legacy format: just private key, need to extract public key
-        // For now, we'll need to store both keys
         throw new Error('Invalid key format. Please regenerate wallet.');
     }
 };
@@ -68,8 +54,6 @@ exports.getPublicFromWallet = getPublicFromWallet;
 const generatePrivateKey = () => {
     const dilithium = getDilithiumSync();
     const keyPair = dilithium.generateKeys(DILITHIUM_LEVEL);
-    // Store both keys as JSON string (base64 encoded arrays)
-    // Convert Uint8Array to regular arrays for JSON serialization
     const keyPairObj = {
         publicKey: Array.from(keyPair.publicKey),
         privateKey: Array.from(keyPair.privateKey)
@@ -78,7 +62,6 @@ const generatePrivateKey = () => {
 };
 exports.generatePrivateKey = generatePrivateKey;
 const initWallet = () => {
-    // let's not override existing private keys
     if (fs_1.existsSync(privateKeyLocation)) {
         return;
     }
@@ -115,7 +98,6 @@ const findTxOutsForAmount = (amount, myUnspentTxOuts) => {
     for (const myUnspentTxOut of myUnspentTxOuts) {
         includedUnspentTxOuts.push(myUnspentTxOut);
         currentAmount = currentAmount + myUnspentTxOut.amount;
-        // Require enough for amount + safe fee (0.0001) to avoid floating point issues with minimum 0.00001
         if (currentAmount >= amount + 0.0001) {
             const leftOverAmount = currentAmount - amount - 0.0001;
             return { includedUnspentTxOuts, leftOverAmount };
@@ -158,7 +140,6 @@ const createTransaction = (receiverAddress, amount, privateKey, unspentTxOuts, t
     const myAddress = transaction_1.getPublicKey(privateKey);
     const myUnspentTxOutsA = unspentTxOuts.filter((uTxO) => uTxO.address === myAddress);
     const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
-    // filter from unspentOutputs such inputs that are referenced in pool
     const { includedUnspentTxOuts, leftOverAmount } = findTxOutsForAmount(amount, myUnspentTxOuts);
     const toUnsignedTxIn = (unspentTxOut) => {
         const txIn = new transaction_1.TxIn();

@@ -11,6 +11,8 @@ import { ValidationError } from './validation_errors';
 import { peerManager } from './peerManager';
 
 const sockets: WebSocket[] = [];
+const knownPeers: Set<string> = new Set();
+const pendingPeers: Set<string> = new Set();
 
 
 enum MessageType {
@@ -42,6 +44,17 @@ const initP2PServer = (p2pPort: number) => {
         initConnection(ws);
     });
     console.log('listening websocket p2p port on: ' + p2pPort);
+
+    // Keep-alive/Reconnection loop
+    setInterval(() => {
+        knownPeers.forEach((peer) => {
+            const isConnected = sockets.find((s) => s.url === peer);
+            if (!isConnected && !pendingPeers.has(peer)) {
+                console.log('Reconnecting to peer: ' + peer);
+                connectToPeers(peer);
+            }
+        });
+    }, 5000);
 };
 
 const getSockets = () => sockets;
@@ -257,15 +270,30 @@ const broadcastLatest = (): void => {
 };
 
 const connectToPeers = (newPeer: string): void => {
-    const ip = newPeer.split(':')[0].replace('ws://', '');
+    // Avoid connecting to self? (Assumption: user manages peer list)
+    if (getSockets().find((s) => s.url === newPeer)) {
+        return;
+    }
+
+    knownPeers.add(newPeer);
+
+    if (pendingPeers.has(newPeer)) {
+        return;
+    }
+    pendingPeers.add(newPeer);
 
     const ws: WebSocket = new WebSocket(newPeer);
     ws.on('open', () => {
+        pendingPeers.delete(newPeer);
         initConnection(ws);
         write(ws, queryHeadersMsg());
     });
     ws.on('error', () => {
-        console.log('connection failed');
+        console.log('connection failed to ' + newPeer);
+        pendingPeers.delete(newPeer);
+    });
+    ws.on('close', () => {
+        pendingPeers.delete(newPeer);
     });
 };
 

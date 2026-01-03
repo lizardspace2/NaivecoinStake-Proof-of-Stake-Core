@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const INITIAL_SCORE = 100;
 const BAN_THRESHOLD = 0;
-const BAN_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const BAN_DURATION_MS = 60 * 60 * 1000;
 class PeerManager {
     constructor() {
         this.peers = new Map();
@@ -21,7 +21,7 @@ class PeerManager {
     updateScore(id, delta) {
         const peer = this.getPeer(id);
         if (peer.isBanned && Date.now() < peer.banEndTime) {
-            return; // Already banned
+            return;
         }
         peer.score += delta;
         console.log(`Peer ${id} score updated by ${delta}. New score: ${peer.score}`);
@@ -39,15 +39,14 @@ class PeerManager {
         const peer = this.getPeer(id);
         if (peer.isBanned) {
             if (Date.now() > peer.banEndTime) {
-                peer.isBanned = false; // Unban
-                peer.score = INITIAL_SCORE / 2; // Reset to lower score
+                peer.isBanned = false;
+                peer.score = INITIAL_SCORE / 2;
                 return false;
             }
             return true;
         }
         return false;
     }
-    // Penalties
     punishInvalidBlock(id) {
         this.updateScore(id, -50);
     }

@@ -14,7 +14,8 @@ const transactionPool_1 = require("./transactionPool");
 const validation_errors_1 = require("./validation_errors");
 const peerManager_1 = require("./peerManager");
 const sockets = [];
-// const bannedPeers: Set<string> = new Set(); // Replaced by peerManager
+const knownPeers = new Set();
+const pendingPeers = new Set();
 var MessageType;
 (function (MessageType) {
     MessageType[MessageType["QUERY_LATEST"] = 0] = "QUERY_LATEST";
@@ -41,6 +42,16 @@ const initP2PServer = (p2pPort) => {
         initConnection(ws);
     });
     console.log('listening websocket p2p port on: ' + p2pPort);
+    // Keep-alive/Reconnection loop
+    setInterval(() => {
+        knownPeers.forEach((peer) => {
+            const isConnected = sockets.find((s) => s.url === peer);
+            if (!isConnected && !pendingPeers.has(peer)) {
+                console.log('Reconnecting to peer: ' + peer);
+                connectToPeers(peer);
+            }
+        });
+    }, 5000);
 };
 exports.initP2PServer = initP2PServer;
 const getSockets = () => sockets;
@@ -50,7 +61,6 @@ const initConnection = (ws) => {
     initMessageHandler(ws);
     initErrorHandler(ws);
     write(ws, queryChainLengthMsg());
-    // query transactions pool only some time after chain query
     setTimeout(() => {
         broadcast(queryTransactionPoolMsg());
     }, 500);
@@ -103,7 +113,6 @@ const initMessageHandler = (ws) => {
                 receivedTransactions.forEach((transaction) => {
                     try {
                         blockchain_1.handleReceivedTransaction(transaction);
-                        // if no error is thrown, transaction was either added to pool or already in it.
                         broadcast(responseTransactionPoolMsg());
                     }
                     catch (e) {
@@ -112,7 +121,6 @@ const initMessageHandler = (ws) => {
                 });
             }
             else if (message.type === MessageType.QUERY_HEADERS) {
-                // Return all headers (simplification, ideally we'd support range)
                 write(ws, responseHeadersMsg());
             }
             else if (message.type === MessageType.RESPONSE_HEADERS) {
@@ -158,7 +166,6 @@ const queryHeadersMsg = () => ({
 const responseHeadersMsg = () => ({
     'type': MessageType.RESPONSE_HEADERS,
     'data': JSON.stringify(blockchain_1.getBlockHeaders(0, blockchain_1.getBlockchain().length))
-    // Optimization: blockchain.ts/getBlockHeaders strips data
 });
 const initErrorHandler = (ws) => {
     const closeConnection = (myWs) => {
@@ -171,11 +178,9 @@ const initErrorHandler = (ws) => {
 const banPeer = (ws, reason) => {
     const ip = ws._socket.remoteAddress;
     console.log(`Banning peer ${ip} for: ${reason}`);
-    // bannedPeers.add(ip);
-    peerManager_1.peerManager.banPeer(ip); // Instant ban
+    peerManager_1.peerManager.banPeer(ip);
     ws.close();
 };
-// Start: Punishment points
 const punishPeer = (ws, penaltyType) => {
     const ip = ws._socket.remoteAddress;
     if (penaltyType === 'BLOCK')
@@ -210,10 +215,10 @@ const handleBlockchainResponse = (receivedBlocks, ws) => __awaiter(this, void 0,
             }
             catch (e) {
                 if (e instanceof validation_errors_1.ValidationError && e.shouldBan) {
-                    banPeer(ws, e.message); // Critical error -> Ban
+                    banPeer(ws, e.message);
                     return;
                 }
-                punishPeer(ws, 'BLOCK'); // Non-critical validation error -> Penalty
+                punishPeer(ws, 'BLOCK');
                 console.log('Error adding block: ' + e.message);
             }
         }
@@ -241,10 +246,6 @@ const handleBlockchainResponse = (receivedBlocks, ws) => __awaiter(this, void 0,
     }
 });
 const handleBinHeadersResponse = (receivedHeaders, ws) => __awaiter(this, void 0, void 0, function* () {
-    // 1. Validate Headers (structure, proof of stake, chaining)
-    // We assume isValidBlockHeader can check basics without state (except PoS balance check needs some state,
-    // but in 'naive' pos we check against minterBalance field which is signed in valid blocks).
-    // Better: we trust the header structure and chain, then check difficulty.
     if (receivedHeaders.length === 0) {
         console.log('received headers size of 0');
         return;
@@ -252,14 +253,8 @@ const handleBinHeadersResponse = (receivedHeaders, ws) => __awaiter(this, void 0
     console.log('Received headers. Count: ' + receivedHeaders.length);
     const latestHeader = receivedHeaders[receivedHeaders.length - 1];
     const latestHeldBlock = blockchain_1.getLatestBlock();
-    // Check if their chain is "heavier" (or longer for now, as difficulty is in header)
-    // We need cumulative difficulty of this remote header chain.
-    // Since we only have headers, we can assume the difficulty claimed in them is true for check,
-    // but we MUST validate it when we download bodies.
     if (latestHeader.index > latestHeldBlock.index) {
         console.log('Peer has better chain (headers). Requesting full blocks.');
-        // Basic optimization: if gap is large, we should sync efficiently.
-        // For now: Request ALL blocks. (Refinement: Request blocks from common ancestor)
         write(ws, queryAllMsg());
     }
 });
@@ -268,22 +263,27 @@ const broadcastLatest = () => {
 };
 exports.broadcastLatest = broadcastLatest;
 const connectToPeers = (newPeer) => {
-    // Check if banned
-    const ip = newPeer.split(':')[0].replace('ws://', ''); // Minimal parsing, real world needs better URL parsing
-    // Actually simpler: we can't easily know IP before connection unless we parse completely.
-    // But since we store "remoteAddress" in bannedPeers, let's try to match.
-    // For now, just allow connection and ban on handshake if needed, or check simple string match if possible.
+    // Avoid connecting to self? (Assumption: user manages peer list)
+    if (getSockets().find((s) => s.url === newPeer)) {
+        return;
+    }
+    knownPeers.add(newPeer);
+    if (pendingPeers.has(newPeer)) {
+        return;
+    }
+    pendingPeers.add(newPeer);
     const ws = new WebSocket(newPeer);
     ws.on('open', () => {
+        pendingPeers.delete(newPeer);
         initConnection(ws);
-        // Instead of asking for latest immediately, let's ask for HEADERS to check validity/pow/pos first
-        // write(ws, queryLatestMsg()); 
-        // Ideally: write(ws, queryHeadersMsg());
-        // For backward compatibility / robust start, queryLatest is fine, but headers is better.
         write(ws, queryHeadersMsg());
     });
     ws.on('error', () => {
-        console.log('connection failed');
+        console.log('connection failed to ' + newPeer);
+        pendingPeers.delete(newPeer);
+    });
+    ws.on('close', () => {
+        pendingPeers.delete(newPeer);
     });
 };
 exports.connectToPeers = connectToPeers;

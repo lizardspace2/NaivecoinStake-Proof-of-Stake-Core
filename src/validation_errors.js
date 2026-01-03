@@ -17,7 +17,7 @@ class ValidationError extends Error {
         super(message);
         this.code = code;
         this.shouldBan = shouldBan;
-        Object.setPrototypeOf(this, new.target.prototype); // restore prototype chain
+        Object.setPrototypeOf(this, new.target.prototype);
     }
 }
 exports.ValidationError = ValidationError;

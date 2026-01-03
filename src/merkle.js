@@ -19,7 +19,6 @@ const getMerkleRootRecursive = (layer) => {
     for (let i = 0; i < layer.length; i += 2) {
         const left = layer[i];
         const right = (i + 1 < layer.length) ? layer[i + 1] : left;
-        // Hash the pair
         const hash = CryptoJS.SHA256(left + right).toString();
         newLayer.push(hash);
     }
