@@ -13,6 +13,15 @@ import { getPublicFromWallet, initWallet, initDilithium } from './wallet';
 
 const httpPort: number = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort: number = parseInt(process.env.P2P_PORT) || 6001;
+const safeMode: boolean = process.env.SAFE_MODE === 'true';
+
+const checkSafeMode = (req, res, next) => {
+    if (safeMode) {
+        res.status(403).send('Endpoint disabled in safe mode');
+        return;
+    }
+    next();
+};
 
 const initHttpServer = (myHttpPort: number) => {
     const app = express();
@@ -76,7 +85,7 @@ const initHttpServer = (myHttpPort: number) => {
         res.send(getMyUnspentTransactionOutputs());
     });
 
-    app.post('/mintRawBlock', async (req, res) => {
+    app.post('/mintRawBlock', checkSafeMode, async (req, res) => {
         if (req.body.data == null) {
             res.send('data parameter is missing');
             return;
@@ -89,7 +98,7 @@ const initHttpServer = (myHttpPort: number) => {
         }
     });
 
-    app.post('/mintBlock', async (req, res) => {
+    app.post('/mintBlock', checkSafeMode, async (req, res) => {
         const newBlock: Block = await generateNextBlock();
         if (newBlock === null) {
             res.status(400).send('could not generate block');
@@ -108,7 +117,7 @@ const initHttpServer = (myHttpPort: number) => {
         res.send({ 'address': address });
     });
 
-    app.post('/mintTransaction', async (req, res) => {
+    app.post('/mintTransaction', checkSafeMode, async (req, res) => {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
@@ -129,7 +138,7 @@ const initHttpServer = (myHttpPort: number) => {
         }
     });
 
-    app.post('/sendTransaction', (req, res) => {
+    app.post('/sendTransaction', checkSafeMode, (req, res) => {
         try {
             const address = req.body.address;
             const amount = req.body.amount;
@@ -158,18 +167,21 @@ const initHttpServer = (myHttpPort: number) => {
     app.get('/peers', (req, res) => {
         res.send(getSockets().map((s: any) => s._socket.remoteAddress + ':' + s._socket.remotePort));
     });
-    app.post('/addPeer', (req, res) => {
+    app.post('/addPeer', checkSafeMode, (req, res) => {
         connectToPeers(req.body.peer);
         res.send();
     });
 
-    app.post('/stop', (req, res) => {
+    app.post('/stop', checkSafeMode, (req, res) => {
         res.send({ 'msg': 'stopping server' });
         process.exit();
     });
 
     app.listen(myHttpPort, () => {
         console.log('Listening http on port: ' + myHttpPort);
+        if (safeMode) {
+            console.log('Safe mode enabled: invalidating all non-read-only endpoints');
+        }
     });
 };
 

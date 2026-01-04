@@ -1,0 +1,19 @@
+version: '3'
+services:
+  explorer-node:
+    build: .
+    ports:
+      - "3001:3001"
+      - "6001:6001"
+    environment:
+      - HTTP_PORT=3001
+      - P2P_PORT=6001
+      - SAFE_MODE=true
+      - PEERS=
+      # No PRIVATE_KEY env var implies using a fresh/random key if implementation supports it, 
+      # or we maps to a non-mounted path. The node code generates one if missing.
+    volumes:
+      # We intentionally DO NOT mount the wallet directory to avoid using the user's private key.
+      # The node will generate a temporary key for this session (which is fine for a read-only node).
+      # If persistence is needed for the peer list, we can mount data but exclude wallet.
+      - ./data:/app/data
