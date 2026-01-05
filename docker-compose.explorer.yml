@@ -2,6 +2,7 @@ version: '3'
 services:
   explorer-node:
     build: .
+    restart: always
     ports:
       - "3001:3001"
       - "6001:6001"

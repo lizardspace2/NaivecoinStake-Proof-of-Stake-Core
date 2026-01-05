@@ -2,6 +2,7 @@ version: '3'
 services:
   node1:
     build: .
+    restart: always
     ports:
       - "127.0.0.1:3001:3001"
       - "6001:6001"
@@ -15,6 +16,7 @@ services:
 
   node2:
     build: .
+    restart: always
     ports:
       - "127.0.0.1:3002:3002"
       - "6002:6002"
