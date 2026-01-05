@@ -55,6 +55,15 @@ const initP2PServer = (p2pPort: number) => {
             }
         });
     }, 5000);
+
+    // Active Resynchronization Loop
+    // Explicitly ask peers for their latest block state every 10 seconds
+    setInterval(() => {
+        if (sockets.length > 0) {
+            // console.log('Active Sync: checking for new blocks...');
+            broadcast(queryChainLengthMsg());
+        }
+    }, 30000);
 };
 
 const getSockets = () => sockets;
