@@ -121,7 +121,7 @@ const initGenesisBlock = (): void => {
         blockchain = [genesisBlock];
         unspentTxOuts = processTransactions(blockchain[0].data, [], 0);
 
-        console.log('Genesis block initialized with Dilithium address');
+        console.log('Genesis block initialized with Quantix address');
         saveBlockchain();
     } catch (error) {
         console.error('Error initializing genesis block:', error);

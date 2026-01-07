@@ -1,10 +1,10 @@
-# NaivecoinStake
+# Quantix (QTX)
 
 [![Licence: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](/LICENSE)
 [![Medium Badge](https://badgen.net/badge/icon/medium?icon=medium&label)](https://medium.com/@sandoche)
 [![Twitter: sandochee](https://img.shields.io/twitter/follow/sandochee.svg?style=social)](https://twitter.com/sandochee)
 
-A tutorial for building a Proof of Stake cryptocurrency: https://naivecoinstake.learn.uno
+A tutorial for building a Proof of Stake cryptocurrency: https://naivecoinstake.learn.uno -> [Quantix Documentation]
 
 Most of this amazing work has been done by Lauri Hartikka, find the original tutorial here: https://lhartikk.github.io 👏
 

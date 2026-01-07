@@ -1,4 +1,4 @@
-# Troubleshooting Guide
+# Troubleshooting Guide: Quantix (QTX)
 
 ## Node Synchronization Issues
 
@@ -33,7 +33,7 @@ curl -s http://localhost:3001/blocks | jq '.[313].hash'
 ```
 
 *   **If hashes are DIFFERENT**: The node is on a fork. You must reset it.
-    *   Stop the container: `sudo docker stop naivecoin-node`
+    *   Stop the container: `sudo docker stop quantix-node`
     *   Remove the data directory (or volume).
     *   Restart the container to resync from scratch.
 
@@ -50,7 +50,7 @@ sudo docker ps
 **Restart the container:**
 ```bash
 sudo docker restart <container_name>
-# Example: sudo docker restart naivecoin-node
+# Example: sudo docker restart quantix-node
 ```
 
 Wait 10-15 seconds and check if the block count increases:

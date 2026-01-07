@@ -1,6 +1,6 @@
-# NaivecoinStake API Cheat Sheet
+# Quantix (QTX) API Cheat Sheet
 
-Here is a list of the most useful commands to interact with your NaivecoinStake node via the terminal.
+Here is a list of the most useful commands to interact with your Quantix node via the terminal.
 
 ## 👛 Wallet & Balance
 

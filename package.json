@@ -1,7 +1,7 @@
 {
-  "name": "naivechain",
+  "name": "quantix-core",
   "version": "1.0.0",
-  "description": "",
+  "description": "Quantix Post-Quantum Blockchain",
   "scripts": {
     "start": "npm run compile && node src/main.js",
     "compile": "tsc"

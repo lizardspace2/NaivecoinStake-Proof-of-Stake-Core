@@ -1,6 +1,6 @@
 # Protocole d'Indexation Blockchain vers Supabase
 
-Ce document décrit la procédure complète pour extraire les données de votre nœud Dilithium (via l'API locale) et les sauvegarder dans une base de données Supabase.
+Ce document décrit la procédure complète pour extraire les données de votre nœud Quantix (via l'API locale) et les sauvegarder dans une base de données Supabase.
 
 Il couvre :
 1.  La configuration de la Base de Données (Schema).
@@ -217,7 +217,7 @@ Copiez-collez le prompt ci-dessous dans votre outil d'IA ou envoyez-le à un dé
 
 ---
 
-### **Prompt Technique Détaillé : "The Dilithium Nexus Explorer"**
+### **Prompt Technique Détaillé : "The Quantix Nexus Explorer"**
 
 **Contexte :**
 Vous êtes l'Architecte Frontend Principal d'une blockchain de nouvelle génération. Vous devez construire l'interface "Flagship" qui servira de vitrine technologique. L'application doit être à la fois un outil d'analyse précis et une expérience visuelle immersive.
@@ -260,7 +260,7 @@ Vous êtes l'Architecte Frontend Principal d'une blockchain de nouvelle généra
     *   *Hauteur de Bloc* (Animation compteur incrémental).
     *   *Difficulté Réseau* (Formatée lisiblement).
     *   *Transactions (24h)*.
-    *   *Supply* (Avec le symbole DIL).
+    *   *Supply* (Avec le symbole QTX).
 *   **Live Feeds (Split View) :**
     *   Gauche : **Derniers Blocs**. Chaque rangée apparaît avec une animation `slide-in` douce quand un nouveau bloc est miné (via Supabase Realtime).
     *   Droite : **Dernières Transactions**. Affiche l'ID tronqué, le montant (en vert) et le temps relatif ("il y a 5s").

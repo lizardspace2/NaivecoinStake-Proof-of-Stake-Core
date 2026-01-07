@@ -2,7 +2,7 @@ version: '3'
 services:
   node:
     build: .
-    container_name: naivecoin-node
+    container_name: quantix-node
     restart: always
     ports:
       - "127.0.0.1:3001:3001"

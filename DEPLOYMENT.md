@@ -1,7 +1,7 @@
 
-# Deployment Guide: NaivecoinStake on Google Cloud Platform (GCP)
+# Deployment Guide: Quantix (QTX) on Google Cloud Platform (GCP)
 
-This guide details step-by-step how to deploy your NaivecoinStake node on the Google Cloud Platform Free Tier.
+This guide details step-by-step how to deploy your Quantix node on the Google Cloud Platform Free Tier.
 
 ## 1. Creating the Virtual Machine (VM)
 
@@ -11,7 +11,7 @@ The GCP Free Tier includes an `e2-micro` instance in specific regions.
 2.  Go to **Compute Engine** > **VM instances**.
 3.  Click on **Create Instance**.
 4.  **Important Configuration (for free tier):**
-    *   **Name**: `naivecoin-node-1`
+    *   **Name**: `quantix-node-1`
     *   **Region**: Choose `us-central1`, `us-west1` or `us-east1` (Only these regions are eligible for the Free Tier).
     *   **Machine type**: `e2-micro` (2 vCPU, 1 GB memory).
     *   **Boot disk**: Click "Change".
@@ -29,7 +29,7 @@ By default, only ports 80 (HTTP) and 443 (HTTPS) are open. You need to open port
 
 1.  In the console, search for "Firewall policies" or go to **VPC network** > **Firewall**.
 2.  Click **Create Firewall Rule**.
-3.  **Name**: `allow-naivecoin-ports`
+3.  **Name**: `allow-quantix-ports`
 4.  **Targets**: `All instances in the network`
 5.  **Source IP ranges**: `0.0.0.0/0` (Allows everyone).
 6.  **Protocols and ports**:
@@ -41,7 +41,7 @@ By default, only ports 80 (HTTP) and 443 (HTTPS) are open. You need to open port
 If you prefer the command line, open the **Cloud Shell** (terminal icon at the top right of the console) and run:
 
 ```bash
-gcloud compute firewall-rules create allow-naivecoin-ports \
+gcloud compute firewall-rules create allow-quantix-ports \
     --allow tcp:3001,tcp:6001 \
     --source-ranges 0.0.0.0/0 \
     --description="Allow API and P2P ports for NaivecoinStake"
@@ -158,7 +158,7 @@ To test the blockchain with multiple peers on **the same machine** (without payi
     services:
       node1:
         build: .
-        container_name: naivecoin-node-1
+        container_name: quantix-node-1
         ports:
           - "3001:3001"
           - "6001:6001"
@@ -172,7 +172,7 @@ To test the blockchain with multiple peers on **the same machine** (without payi
 
       node2:
         build: .
-        container_name: naivecoin-node-2
+        container_name: quantix-node-2
         ports:
           - "3002:3002"
           - "6002:6002"

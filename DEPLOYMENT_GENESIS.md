@@ -1,6 +1,6 @@
 # Deployment Guide: Genesis Node (Node 1)
 
-This guide details how to deploy the **first node** (Genesis Node) of your NaivecoinStake network. This node is special because it contains the Genesis private key and starts the blockchain.
+This guide details how to deploy the **first node** (Genesis Node) of your Quantix network. This node is special because it contains the Genesis private key and starts the blockchain.
 
 ## 1. Creating the Virtual Machine (VM)
 
@@ -12,7 +12,7 @@ We will use **Google Cloud Platform (GCP)** for this guide, taking advantage of 
     *   Click the **Create Instance** button.
 
 2.  **Basic Configuration**:
-    *   **Name**: `naivecoin-node-1`
+    *   **Name**: `quantix-node-1`
     *   **Region**: Choose a region eligible for the "Free Tier" (e.g., `us-central1` (Iowa), `us-west1` (Oregon) or `us-east1` (South Carolina)).
     *   **Zone**: Any zone within the region (e.g., `us-central1-a`).
 
@@ -53,10 +53,10 @@ You need to open ports **3001** (API) and **6001** (P2P).
 
 ### Via Cloud Shell
 ```bash
-gcloud compute firewall-rules create allow-naivecoin-ports \
+gcloud compute firewall-rules create allow-quantix-ports \
     --allow tcp:3001,tcp:6001 \
     --source-ranges 0.0.0.0/0 \
-    --description="Allow API and P2P ports for NaivecoinStake"
+    --description="Allow API and P2P ports for Quantix"
 ```
 *(Or via the web interface in "VPC Network > Firewall")*
 

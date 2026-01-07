@@ -224,8 +224,8 @@ initDilithium().then(() => {
     peers.forEach((peer) => {
         connectToPeers(peer);
     });
-    console.log('Dilithium post-quantum cryptography initialized');
+    console.log('Quantix post-quantum cryptography initialized');
 }).catch((error) => {
-    console.error('Failed to initialize Dilithium:', error);
+    console.error('Failed to initialize Quantix core:', error);
     process.exit(1);
 });

@@ -11,7 +11,7 @@ To create a new node (peer), we will create a new VM instance on Google Cloud Pl
     *   Click **Create Instance**.
 
 2.  **Basic Configuration**:
-    *   **Name**: `naivecoin-node-2` (or node-3, etc.)
+    *   **Name**: `quantix-node-2` (or node-3, etc.)
     *   **Region**: You can choose the same region as Node 1 or a different one for more decentralization (e.g., `us-central1` if Node 1 is in `us-west1`).
     *   **Machine type**: `e2-micro` (Part of the free tier).
 

@@ -63,7 +63,7 @@ const initWallet = () => {
         writeFileSync(privateKeyLocation, newPrivateKey);
         console.log('new wallet with private key created to : %s', privateKeyLocation);
     } catch (error) {
-        console.error('Error initializing wallet. Make sure Dilithium is initialized first.');
+        console.error('Error initializing wallet. Make sure Quantix cryptography is initialized first.');
         throw error;
     }
 };
