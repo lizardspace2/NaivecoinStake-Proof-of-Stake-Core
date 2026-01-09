@@ -1,7 +1,7 @@
 {
   "name": "quantix-core",
   "version": "1.0.0",
-  "description": "Quantix Post-Quantum Blockchain",
+  "description": "Quantix Coin the quantum resistant blockchain",
   "scripts": {
     "start": "npm run compile && node src/main.js",
     "compile": "tsc"

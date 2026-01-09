@@ -44,7 +44,7 @@ If you prefer the command line, open the **Cloud Shell** (terminal icon at the t
 gcloud compute firewall-rules create allow-quantix-ports \
     --allow tcp:3001,tcp:6001 \
     --source-ranges 0.0.0.0/0 \
-    --description="Allow API and P2P ports for NaivecoinStake"
+    --description="Allow API and P2P ports for Quantix Coin"
 ```
 
 ## 3. Node Installation and Launch
@@ -81,8 +81,8 @@ sudo docker run hello-world
 1.  **Clone your repository**
     (Replace URL_OF_REPO with your GitHub/GitLab repo URL)
     ```bash
-    git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
-    cd NaivecoinStake-Proof-of-Stake-Core
+    git clone https://github.com/lizardspace2/Quantix-Core.git
+    cd Quantix-Core
     ```
 
 2.  **Production configuration**
@@ -100,7 +100,7 @@ sudo docker run hello-world
     2.  Select your `genesis_key.json` file on your computer.
     3.  Once the transfer is complete, move it to the project folder:
     ```bash
-    mv ~/genesis_key.json ~/NaivecoinStake-Proof-of-Stake-Core/
+    mv ~/genesis_key.json ~/Quantix-Core/
     ```
     (If the command fails, do `ls` to see where the file is).
 
@@ -206,12 +206,12 @@ To test the blockchain with multiple peers on **the same machine** (without payi
 This method is closer to a real decentralized network.
 *Warning: The second VM may incur costs if your free server quota is exceeded.*
 
-1.  **Create the second VM (`naivecoin-node-2`)**
+1.  **Create the second VM (`quantix-node-2`)**
     *   Follow step 1 of this guide to create a new instance.
-    *   Apply the **same firewall rule** (the `http-server` tag or `allow-naivecoin-ports` rule applies to the entire network if configured on `0.0.0.0/0`).
+    *   Apply the **same firewall rule** (the `allow-quantix-ports` rule applies to the entire network if configured on `0.0.0.0/0`).
 
 2.  **Install the software**
-    *   SSH into `naivecoin-node-2`.
+    *   SSH into `quantix-node-2`.
     *   Follow step 3.A to install Docker and Git.
     *   Clone the repository (Step 3.B.1).
 

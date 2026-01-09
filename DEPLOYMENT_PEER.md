@@ -58,8 +58,8 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # 3. Clone the repository
-git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
-cd NaivecoinStake-Proof-of-Stake-Core
+git clone https://github.com/lizardspace2/Quantix-Core.git
+cd Quantix-Core
 ```
 
 ## 3. Configuration and Launch

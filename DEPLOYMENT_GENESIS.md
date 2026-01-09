@@ -79,8 +79,8 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # 3. Clone the repository
-git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
-cd NaivecoinStake-Proof-of-Stake-Core
+git clone https://github.com/lizardspace2/Quantix-Core.git
+cd Quantix-Core
 ```
 
 ## 4. Genesis Configuration
@@ -91,7 +91,7 @@ The Genesis node needs the private key that controls the initial 100 million coi
     *   *SSH Web Tip*: "Upload file" button in the top right.
 2.  **Place the key**:
     ```bash
-    mv ~/genesis_key.json ~/NaivecoinStake-Proof-of-Stake-Core/
+    mv ~/genesis_key.json ~/Quantix-Core/
     ```
 
 ## 5. Launch
