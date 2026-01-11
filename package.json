@@ -7,6 +7,8 @@
     "compile": "tsc"
   },
   "dependencies": {
+    "@noble/curves": "1.9.1",
+    "@noble/hashes": "1.3.3",
     "@noble/post-quantum": "^0.5.4",
     "axios": "^0.16.2",
     "bignumber.js": "^7.2.1",
@@ -17,9 +19,7 @@
     "elliptic": "^6.4.0",
     "express": "~4.11.1",
     "lodash": "^4.17.4",
-    "ws": "^3.0.0",
-    "@noble/hashes": "1.3.3",
-    "@noble/curves": "1.2.0"
+    "ws": "^3.0.0"
   },
   "engines": {
     "node": ">=8.5.0"
@@ -31,8 +31,8 @@
     "@types/lodash": "^4.14.85",
     "@types/node": "^8.0.9",
     "@types/ws": "^3.0.1",
-    "tslint": "^5.5.0",
     "ts-node": "^10.9.1",
+    "tslint": "^5.5.0",
     "typescript": "^4.9.5"
   }
 }

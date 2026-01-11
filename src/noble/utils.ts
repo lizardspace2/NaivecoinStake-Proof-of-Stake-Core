@@ -6,13 +6,31 @@
 import {
   type CHash,
   type TypedArray,
-  abytes,
-  abytes as abytes_,
   concatBytes,
-  isBytes,
   randomBytes as randb,
 } from '@noble/hashes/utils';
-export { abytes } from '@noble/hashes/utils';
+
+/** Checks if something is Uint8Array. Be careful: nodejs Buffer will return true. */
+export function isBytes(a: unknown): a is Uint8Array {
+  return a instanceof Uint8Array || (ArrayBuffer.isView(a) && a.constructor.name === 'Uint8Array');
+}
+
+/** Asserts something is Uint8Array. */
+export function abytes(value: Uint8Array, length?: number, title: string = ''): Uint8Array {
+  const bytes = isBytes(value);
+  const len = value?.length;
+  const needsLen = length !== undefined;
+  if (!bytes || (needsLen && len !== length)) {
+    const prefix = title && `"${title}" `;
+    const ofLen = needsLen ? ` of length ${length}` : '';
+    const got = bytes ? `length=${len}` : `type=${typeof value}`;
+    throw new Error(prefix + 'expected Uint8Array' + ofLen + ', got ' + got);
+  }
+  return value;
+}
+
+const abytes_ = abytes;
+// export { abytes } from '@noble/hashes/utils';
 export { concatBytes };
 export const randomBytes: typeof randb = randb;
 
@@ -183,7 +201,8 @@ export function getMessage(msg: Uint8Array, ctx: Uint8Array = EMPTY): Uint8Array
 const oidNistP = /* @__PURE__ */ Uint8Array.from([6, 9, 0x60, 0x86, 0x48, 1, 0x65, 3, 4, 2]);
 
 export function checkHash(hash: CHash, requiredStrength: number = 0): void {
-  if (!hash.oid || !equalBytes(hash.oid.subarray(0, 10), oidNistP))
+  const h = hash as any;
+  if (!h.oid || !equalBytes(h.oid.subarray(0, 10), oidNistP))
     throw new Error('hash.oid is invalid: expected NIST hash');
   const collisionResistance = (hash.outputLen * 8) / 2;
   if (requiredStrength > collisionResistance) {
@@ -205,5 +224,5 @@ export function getMessagePrehash(
   abytes_(ctx);
   if (ctx.length > 255) throw new Error('context should be less than 255 bytes');
   const hashed = hash(msg);
-  return concatBytes(new Uint8Array([1, ctx.length]), ctx, hash.oid!, hashed);
+  return concatBytes(new Uint8Array([1, ctx.length]), ctx, (hash as any).oid!, hashed);
 }
