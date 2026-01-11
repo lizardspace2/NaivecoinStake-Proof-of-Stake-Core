@@ -456,7 +456,7 @@ function getDilithium(opts: DilithiumOpts) {
       // This part is per msg
       const mu = externalMu
         ? msg
-        : shake256.create({ dkLen: CRH_BYTES }).update(tr).update(msg).digest(); // 6: µ ← H(tr||M, 512) ▷ Compute message representative µ
+        : shake256.create().update(tr).update(msg).xof(CRH_BYTES); // 6: µ ← H(tr||M, 512) ▷ Compute message representative µ
 
       // Compute private random seed
       const rnd =
@@ -467,11 +467,11 @@ function getDilithium(opts: DilithiumOpts) {
             : random;
       abytes(rnd, 32, 'extraEntropy');
       const rhoprime = shake256
-        .create({ dkLen: CRH_BYTES })
+        .create()
         .update(_K)
         .update(rnd)
         .update(mu)
-        .digest(); // ρ′← H(K||rnd||µ, 512)
+        .xof(CRH_BYTES); // ρ′← H(K||rnd||µ, 512)
 
       abytes(rhoprime, CRH_BYTES);
       const x256 = XOF256(rhoprime, ZCoder.bytesLen);
@@ -493,10 +493,10 @@ function getDilithium(opts: DilithiumOpts) {
         const w1 = w.map((j) => j.map(HighBits)); // w1 ← HighBits(w)
         // Commitment hash: c˜ ∈{0, 1 2λ } ← H(µ||w1Encode(w1), 2λ)
         const cTilde = shake256
-          .create({ dkLen: C_TILDE_BYTES })
+          .create()
           .update(mu)
           .update(W1Vec.encode(w1))
-          .digest();
+          .xof(C_TILDE_BYTES);
         // Verifer’s challenge
         const cHat = NTT.encode(SampleInBall(cTilde)); // c ← SampleInBall(c˜1); cˆ ← NTT(c)
         // ⟨⟨cs1⟩⟩ ← NTT−1(cˆ◦ sˆ1)
@@ -548,7 +548,7 @@ function getDilithium(opts: DilithiumOpts) {
       for (let i = 0; i < L; i++) if (polyChknorm(z[i], GAMMA1 - BETA)) return false;
       const mu = externalMu
         ? msg
-        : shake256.create({ dkLen: CRH_BYTES }).update(tr).update(msg).digest(); // 7: µ ← H(tr||M, 512)
+        : shake256.create().update(tr).update(msg).xof(CRH_BYTES); // 7: µ ← H(tr||M, 512)
       // Compute verifer’s challenge from c˜
       const c = NTT.encode(SampleInBall(cTilde)); // c ← SampleInBall(c˜1)
       const zNtt = z.map((i) => i.slice()); // zNtt = NTT(z)
@@ -570,10 +570,10 @@ function getDilithium(opts: DilithiumOpts) {
       xof.clean();
       // c˜′← H (µ||w1Encode(w′1), 2λ),  Hash it; this should match c˜
       const c2 = shake256
-        .create({ dkLen: C_TILDE_BYTES })
+        .create()
         .update(mu)
         .update(W1Vec.encode(wTick1))
-        .digest();
+        .xof(C_TILDE_BYTES);
       // Additional checks in FIPS-204:
       // [[ ||z||∞ < γ1 − β ]] and [[c ˜ = c˜′]] and [[number of 1’s in h is ≤ ω]]
       for (const t of h) {

@@ -142,7 +142,7 @@ const createXofShake =
       _seed.set(seed);
       const seedLen = seed.length;
       const buf = new Uint8Array(blockLen); // == shake128.blockLen
-      let h = shake.create({});
+      let h = shake.create();
       let calls = 0;
       let xofs = 0;
       return {
@@ -151,11 +151,13 @@ const createXofShake =
           _seed[seedLen + 0] = x;
           _seed[seedLen + 1] = y;
           h.destroy();
-          h = shake.create({}).update(_seed);
+          h = shake.create().update(_seed);
           calls++;
           return () => {
             xofs++;
-            return h.xofInto(buf);
+            // return h.xofInto(buf);
+            buf.set(h.xof(buf.length));
+            return buf;
           };
         },
         clean: () => {

@@ -601,7 +601,7 @@ const genShake =
   (): GetContext => (opts: SphincsOpts) => (pubSeed: Uint8Array, skSeed?: Uint8Array) => {
     const { N } = opts;
     const stats = { prf: 0, thash: 0, hmsg: 0, gen_message_random: 0 };
-    const h0 = shake256.create({}).update(pubSeed);
+    const h0 = shake256.create().update(pubSeed);
     const h0tmp = h0.clone();
     const thash = (blocks: number, input: Uint8Array, addr: ADRS) => {
       stats.thash++;
@@ -620,11 +620,11 @@ const genShake =
       },
       PRFmsg: (skPRF: Uint8Array, random: Uint8Array, msg: Uint8Array) => {
         stats.gen_message_random++;
-        return shake256.create({}).update(skPRF).update(random).update(msg).digest().subarray(0, N);
+        return shake256.create().update(skPRF).update(random).update(msg).xof(N);
       },
       Hmsg: (R: Uint8Array, pk: Uint8Array, m: Uint8Array, outLen) => {
         stats.hmsg++;
-        return shake256.create({}).update(R.subarray(0, N)).update(pk).update(m).xof(outLen);
+        return shake256.create().update(R.subarray(0, N)).update(pk).update(m).xof(outLen);
       },
       thash1: thash.bind(null, 1),
       thashN: thash,
