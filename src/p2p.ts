@@ -63,7 +63,7 @@ const initP2PServer = (p2pPort: number) => {
             // console.log('Active Sync: checking for new blocks...');
             broadcast(queryChainLengthMsg());
         }
-    }, 30000);
+    }, 10000);
 };
 
 const getSockets = () => sockets;
