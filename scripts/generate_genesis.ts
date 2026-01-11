@@ -49,8 +49,11 @@ const generate = () => {
 
         // So it expects the hex string of the seed directly.
 
+        // Create valid JSON object
+        const keyObj = { privateKey: seedHex };
+
         const outputPath = path.resolve(__dirname, '../genesis_key.json');
-        fs.writeFileSync(outputPath, seedHex);
+        fs.writeFileSync(outputPath, JSON.stringify(keyObj, null, 2));
 
         const pubKeyPath = path.resolve(__dirname, '../genesis_pubkey.txt');
         fs.writeFileSync(pubKeyPath, publicKeyHex);

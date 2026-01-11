@@ -26,8 +26,16 @@ const hex2buf = (hex: string): Uint8Array => {
 };
 
 const getPrivateFromWallet = (): string => {
-    const buffer = readFileSync(privateKeyFile, 'utf8');
-    return buffer.toString();
+    const content = readFileSync(privateKeyFile, 'utf8');
+    try {
+        const json = JSON.parse(content);
+        if (json.privateKey) {
+            return json.privateKey;
+        }
+        return content;
+    } catch (e) {
+        return content;
+    }
 };
 
 const getPublicFromWallet = (): string => {
@@ -64,7 +72,8 @@ const initWallet = () => {
     }
     const seed = crypto.getRandomValues(new Uint8Array(32));
     const seedHex = buf2hex(seed);
-    writeFileSync(privateKeyFile, seedHex);
+    const keyObj = { privateKey: seedHex };
+    writeFileSync(privateKeyFile, JSON.stringify(keyObj, null, 2));
     console.log('New wallet initialized.');
 };
 
