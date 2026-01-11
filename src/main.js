@@ -1,8 +1,34 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const bodyParser = require("body-parser");
-const express = require("express");
-const _ = require("lodash");
+const bodyParser = __importStar(require("body-parser"));
+const express_1 = __importDefault(require("express"));
+const lodash_1 = __importDefault(require("lodash"));
 const blockchain_1 = require("./blockchain");
 const p2p_1 = require("./p2p");
 const transactionPool_1 = require("./transactionPool");
@@ -18,7 +44,7 @@ const checkSafeMode = (req, res, next) => {
     next();
 };
 const initHttpServer = (myHttpPort) => {
-    const app = express();
+    const app = (0, express_1.default)();
     app.set('etag', false);
     app.use(bodyParser.json());
     app.use((err, req, res, next) => {
@@ -30,11 +56,11 @@ const initHttpServer = (myHttpPort) => {
         res.send((0, blockchain_1.getBlockchain)());
     });
     app.get('/block/:hash', (req, res) => {
-        const block = _.find((0, blockchain_1.getBlockchain)(), { 'hash': req.params.hash });
+        const block = lodash_1.default.find((0, blockchain_1.getBlockchain)(), { 'hash': req.params.hash });
         res.send(block);
     });
     app.get('/block/index/:index', (req, res) => {
-        const block = _.find((0, blockchain_1.getBlockchain)(), { 'index': parseInt(req.params.index) });
+        const block = lodash_1.default.find((0, blockchain_1.getBlockchain)(), { 'index': parseInt(req.params.index) });
         res.send(block);
     });
     app.get('/blocks/:from/:to', (req, res) => {
@@ -44,14 +70,14 @@ const initHttpServer = (myHttpPort) => {
         res.send(blocks);
     });
     app.get('/transaction/:id', (req, res) => {
-        const tx = _((0, blockchain_1.getBlockchain)())
+        const tx = (0, lodash_1.default)((0, blockchain_1.getBlockchain)())
             .map((blocks) => blocks.data)
             .flatten()
             .find({ 'id': req.params.id });
         res.send(tx);
     });
     app.get('/address/:address', (req, res) => {
-        const unspentTxOuts = _.filter((0, blockchain_1.getUnspentTxOuts)(), (uTxO) => uTxO.address === req.params.address);
+        const unspentTxOuts = lodash_1.default.filter((0, blockchain_1.getUnspentTxOuts)(), (uTxO) => uTxO.address === req.params.address);
         res.send({ 'unspentTxOuts': unspentTxOuts });
     });
     app.get('/unspentTransactionOutputs', (req, res) => {

@@ -1,8 +1,34 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateBlockTransactions = exports.hasDuplicates = exports.getPublicKey = exports.validateTransaction = exports.isValidAddress = exports.getTransactionId = exports.signTxIn = exports.processTransactions = exports.Transaction = exports.TxOut = exports.TxIn = exports.UnspentTxOut = exports.getTxFee = exports.getCoinbaseTransaction = exports.getCoinbaseAmount = void 0;
-const CryptoJS = require("crypto-js");
-const _ = require("lodash");
+const CryptoJS = __importStar(require("crypto-js"));
+const lodash_1 = __importDefault(require("lodash"));
 const wallet_1 = require("./wallet");
 const validation_errors_1 = require("./validation_errors");
 const COINBASE_AMOUNT_INITIAL = 50;
@@ -109,7 +135,7 @@ const validateBlockTransactions = (aTransactions, aUnspentTxOuts, blockIndex) =>
     if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
         throw new validation_errors_1.ValidationError('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx), validation_errors_1.ValidationErrorCode.INVALID_COINBASE, true);
     }
-    const txIns = _(aTransactions)
+    const txIns = (0, lodash_1.default)(aTransactions)
         .map((tx) => tx.txIns)
         .flatten()
         .value();
@@ -124,8 +150,8 @@ const validateBlockTransactions = (aTransactions, aUnspentTxOuts, blockIndex) =>
 };
 exports.validateBlockTransactions = validateBlockTransactions;
 const hasDuplicates = (txIns) => {
-    const groups = _.countBy(txIns, (txIn) => txIn.txOutId + txIn.txOutIndex);
-    return _(groups)
+    const groups = lodash_1.default.countBy(txIns, (txIn) => txIn.txOutId + txIn.txOutIndex);
+    return (0, lodash_1.default)(groups)
         .map((value, key) => {
         if (value > 1) {
             console.log('duplicate txIn: ' + key);

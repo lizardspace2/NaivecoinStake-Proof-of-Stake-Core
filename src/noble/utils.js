@@ -1,16 +1,34 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMessagePrehash = exports.checkHash = exports.getMessage = exports.EMPTY = exports.getMask = exports.cleanBytes = exports.vecCoder = exports.splitCoder = exports.validateSigOpts = exports.validateVerOpts = exports.validateOpts = exports.copyBytes = exports.equalBytes = exports.randomBytes = exports.concatBytes = exports.abytes = void 0;
+exports.getMessagePrehash = exports.checkHash = exports.getMessage = exports.EMPTY = exports.getMask = exports.cleanBytes = exports.vecCoder = exports.splitCoder = exports.validateSigOpts = exports.validateVerOpts = exports.validateOpts = exports.copyBytes = exports.equalBytes = exports.randomBytes = exports.concatBytes = exports.abytes = exports.isBytes = void 0;
 /**
  * Utilities for hex, bytearray and number handling.
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-const utils_js_1 = require("@noble/hashes/utils.js");
-Object.defineProperty(exports, "concatBytes", { enumerable: true, get: function () { return utils_js_1.concatBytes; } });
-var utils_js_2 = require("@noble/hashes/utils.js");
-Object.defineProperty(exports, "abytes", { enumerable: true, get: function () { return utils_js_2.abytes; } });
-exports.randomBytes = utils_js_1.randomBytes;
+const utils_1 = require("@noble/hashes/utils");
+Object.defineProperty(exports, "concatBytes", { enumerable: true, get: function () { return utils_1.concatBytes; } });
+/** Checks if something is Uint8Array. Be careful: nodejs Buffer will return true. */
+function isBytes(a) {
+    return a instanceof Uint8Array || (ArrayBuffer.isView(a) && a.constructor.name === 'Uint8Array');
+}
+exports.isBytes = isBytes;
+/** Asserts something is Uint8Array. */
+function abytes(value, length, title = '') {
+    const bytes = isBytes(value);
+    const len = value?.length;
+    const needsLen = length !== undefined;
+    if (!bytes || (needsLen && len !== length)) {
+        const prefix = title && `"${title}" `;
+        const ofLen = needsLen ? ` of length ${length}` : '';
+        const got = bytes ? `length=${len}` : `type=${typeof value}`;
+        throw new Error(prefix + 'expected Uint8Array' + ofLen + ', got ' + got);
+    }
+    return value;
+}
+exports.abytes = abytes;
+const abytes_ = abytes;
+exports.randomBytes = utils_1.randomBytes;
 // Compares 2 u8a-s in kinda constant time
 function equalBytes(a, b) {
     if (a.length !== b.length)
@@ -28,20 +46,20 @@ function copyBytes(bytes) {
 exports.copyBytes = copyBytes;
 function validateOpts(opts) {
     // We try to catch u8a, since it was previously valid argument at this position
-    if (typeof opts !== 'object' || opts === null || (0, utils_js_1.isBytes)(opts))
+    if (typeof opts !== 'object' || opts === null || isBytes(opts))
         throw new Error('expected opts to be an object');
 }
 exports.validateOpts = validateOpts;
 function validateVerOpts(opts) {
     validateOpts(opts);
     if (opts.context !== undefined)
-        (0, utils_js_1.abytes)(opts.context, undefined, 'opts.context');
+        abytes(opts.context, undefined, 'opts.context');
 }
 exports.validateVerOpts = validateVerOpts;
 function validateSigOpts(opts) {
     validateVerOpts(opts);
     if (opts.extraEntropy !== false && opts.extraEntropy !== undefined)
-        (0, utils_js_1.abytes)(opts.extraEntropy, undefined, 'opts.extraEntropy');
+        abytes(opts.extraEntropy, undefined, 'opts.extraEntropy');
 }
 exports.validateSigOpts = validateSigOpts;
 function splitCoder(label, ...lengths) {
@@ -55,7 +73,7 @@ function splitCoder(label, ...lengths) {
                 const c = lengths[i];
                 const l = getLength(c);
                 const b = typeof c === 'number' ? bufs[i] : c.encode(bufs[i]);
-                (0, utils_js_1.abytes)(b, l, label);
+                abytes_(b, l, label);
                 res.set(b, pos);
                 if (typeof c !== 'number')
                     b.fill(0); // clean
@@ -64,7 +82,7 @@ function splitCoder(label, ...lengths) {
             return res;
         },
         decode: (buf) => {
-            (0, utils_js_1.abytes)(buf, bytesLen, label);
+            abytes_(buf, bytesLen, label);
             const res = [];
             for (const c of lengths) {
                 const l = getLength(c);
@@ -95,7 +113,7 @@ function vecCoder(c, vecLen) {
             return res;
         },
         decode: (a) => {
-            (0, utils_js_1.abytes)(a, bytesLen);
+            abytes_(a, bytesLen);
             const r = [];
             for (let i = 0; i < a.length; i += c.bytesLen)
                 r.push(c.decode(a.subarray(i, i + c.bytesLen)));
@@ -121,17 +139,18 @@ function getMask(bits) {
 exports.getMask = getMask;
 exports.EMPTY = Uint8Array.of();
 function getMessage(msg, ctx = exports.EMPTY) {
-    (0, utils_js_1.abytes)(msg);
-    (0, utils_js_1.abytes)(ctx);
+    abytes_(msg);
+    abytes_(ctx);
     if (ctx.length > 255)
         throw new Error('context should be less than 255 bytes');
-    return (0, utils_js_1.concatBytes)(new Uint8Array([0, ctx.length]), ctx, msg);
+    return (0, utils_1.concatBytes)(new Uint8Array([0, ctx.length]), ctx, msg);
 }
 exports.getMessage = getMessage;
 // 06 09 60 86 48 01 65 03 04 02
 const oidNistP = /* @__PURE__ */ Uint8Array.from([6, 9, 0x60, 0x86, 0x48, 1, 0x65, 3, 4, 2]);
 function checkHash(hash, requiredStrength = 0) {
-    if (!hash.oid || !equalBytes(hash.oid.subarray(0, 10), oidNistP))
+    const h = hash;
+    if (!h.oid || !equalBytes(h.oid.subarray(0, 10), oidNistP))
         throw new Error('hash.oid is invalid: expected NIST hash');
     const collisionResistance = (hash.outputLen * 8) / 2;
     if (requiredStrength > collisionResistance) {
@@ -143,12 +162,12 @@ function checkHash(hash, requiredStrength = 0) {
 }
 exports.checkHash = checkHash;
 function getMessagePrehash(hash, msg, ctx = exports.EMPTY) {
-    (0, utils_js_1.abytes)(msg);
-    (0, utils_js_1.abytes)(ctx);
+    abytes_(msg);
+    abytes_(ctx);
     if (ctx.length > 255)
         throw new Error('context should be less than 255 bytes');
     const hashed = hash(msg);
-    return (0, utils_js_1.concatBytes)(new Uint8Array([1, ctx.length]), ctx, hash.oid, hashed);
+    return (0, utils_1.concatBytes)(new Uint8Array([1, ctx.length]), ctx, hash.oid, hashed);
 }
 exports.getMessagePrehash = getMessagePrehash;
 //# sourceMappingURL=utils.js.map

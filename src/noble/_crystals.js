@@ -6,8 +6,8 @@ exports.XOF256 = exports.XOF128 = exports.genCrystals = void 0;
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-const fft_js_1 = require("@noble/curves/abstract/fft.js");
-const sha3_js_1 = require("@noble/hashes/sha3.js");
+const fft_1 = require("@noble/curves/abstract/fft");
+const sha3_1 = require("@noble/hashes/sha3");
 const utils_1 = require("./utils");
 const genCrystals = (opts) => {
     // isKyber: true means Kyber, false means Dilithium
@@ -25,7 +25,7 @@ const genCrystals = (opts) => {
     function getZettas() {
         const out = newPoly(N);
         for (let i = 0; i < N; i++) {
-            const b = (0, fft_js_1.reverseBits)(i, brvBits);
+            const b = (0, fft_1.reverseBits)(i, brvBits);
             const p = BigInt(ROOT_OF_UNITY) ** BigInt(b) % BigInt(Q);
             out[i] = Number(p) | 0;
         }
@@ -51,8 +51,8 @@ const genCrystals = (opts) => {
         skipStages: isKyber ? 1 : 0,
         brp: false,
     };
-    const dif = (0, fft_js_1.FFTCore)(field, { dit: false, ...nttOpts });
-    const dit = (0, fft_js_1.FFTCore)(field, { dit: true, ...nttOpts });
+    const dif = (0, fft_1.FFTCore)(field, { dit: false, ...nttOpts });
+    const dit = (0, fft_1.FFTCore)(field, { dit: true, ...nttOpts });
     const NTT = {
         encode: (r) => {
             return dif(r);
@@ -120,7 +120,9 @@ const createXofShake = (shake) => (seed, blockLen) => {
             calls++;
             return () => {
                 xofs++;
-                return h.xofInto(buf);
+                // return h.xofInto(buf);
+                buf.set(h.xof(buf.length));
+                return buf;
             };
         },
         clean: () => {
@@ -129,6 +131,6 @@ const createXofShake = (shake) => (seed, blockLen) => {
         },
     };
 };
-exports.XOF128 = createXofShake(sha3_js_1.shake128);
-exports.XOF256 = createXofShake(sha3_js_1.shake256);
+exports.XOF128 = createXofShake(sha3_1.shake128);
+exports.XOF256 = createXofShake(sha3_1.shake256);
 //# sourceMappingURL=_crystals.js.map

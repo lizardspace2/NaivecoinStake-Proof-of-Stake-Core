@@ -11,14 +11,16 @@ exports.ml_dsa87 = exports.ml_dsa65 = exports.ml_dsa44 = exports.PARAMS = void 0
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-const utils_js_1 = require("@noble/curves/utils.js");
-const sha3_js_1 = require("@noble/hashes/sha3.js");
+// import { abool } from '@noble/curves/utils.js';
+const abool = (b, label) => { if (typeof b !== 'boolean')
+    throw new Error(`${label} must be boolean`); };
+const sha3_1 = require("@noble/hashes/sha3");
 const _crystals_1 = require("./_crystals");
 const utils_1 = require("./utils");
 function validateInternalOpts(opts) {
     (0, utils_1.validateOpts)(opts);
     if (opts.externalMu !== undefined)
-        (0, utils_js_1.abool)(opts.externalMu, 'opts.externalMu');
+        abool(opts.externalMu, 'opts.externalMu');
 }
 // Constants
 const N = 256;
@@ -228,15 +230,15 @@ function getDilithium(opts) {
     const SampleInBall = (seed) => {
         // Samples a polynomial c ∈ Rq with coeffcients from {−1, 0, 1} and Hamming weight τ
         const pre = newPoly(N);
-        const s = sha3_js_1.shake256.create({}).update(seed);
-        const buf = new Uint8Array(sha3_js_1.shake256.blockLen);
+        const s = sha3_1.shake256.create({}).update(seed);
+        const buf = new Uint8Array(sha3_1.shake256.blockLen);
         s.xofInto(buf);
         const masks = buf.slice(0, 8);
         for (let i = N - TAU, pos = 8, maskPos = 0, maskBit = 0; i < N; i++) {
             let b = i + 1;
             for (; b > i;) {
                 b = buf[pos++];
-                if (pos < sha3_js_1.shake256.blockLen)
+                if (pos < sha3_1.shake256.blockLen)
                     continue;
                 s.xofInto(buf);
                 pos = 0;
@@ -299,7 +301,7 @@ function getDilithium(opts) {
                 (0, utils_1.cleanBytes)(seed);
             seedDst[32] = K;
             seedDst[33] = L;
-            const [rho, rhoPrime, K_] = seedCoder.decode((0, sha3_js_1.shake256)(seedDst, { dkLen: seedCoder.bytesLen }));
+            const [rho, rhoPrime, K_] = seedCoder.decode((0, sha3_1.shake256)(seedDst, { dkLen: seedCoder.bytesLen }));
             const xofPrime = XOF256(rhoPrime);
             const s1 = [];
             for (let i = 0; i < L; i++)
@@ -325,7 +327,7 @@ function getDilithium(opts) {
                 t1.push(r1);
             }
             const publicKey = publicCoder.encode([rho, t1]); // pk ← pkEncode(ρ, t1)
-            const tr = (0, sha3_js_1.shake256)(publicKey, { dkLen: TR_BYTES }); // tr ← H(BytesToBits(pk), 512)
+            const tr = (0, sha3_1.shake256)(publicKey, { dkLen: TR_BYTES }); // tr ← H(BytesToBits(pk), 512)
             const secretKey = secretCoder.encode([rho, K_, tr, s1, s2, t0]); // sk ← skEncode(ρ, K,tr, s1, s2, t0)
             xof.clean();
             xofPrime.clean();
@@ -383,7 +385,7 @@ function getDilithium(opts) {
             // This part is per msg
             const mu = externalMu
                 ? msg
-                : sha3_js_1.shake256.create({ dkLen: CRH_BYTES }).update(tr).update(msg).digest(); // 6: µ ← H(tr||M, 512) ▷ Compute message representative µ
+                : sha3_1.shake256.create({}).update(tr).update(msg).xof(CRH_BYTES); // 6: µ ← H(tr||M, 512) ▷ Compute message representative µ
             // Compute private random seed
             const rnd = random === false
                 ? new Uint8Array(32)
@@ -391,12 +393,12 @@ function getDilithium(opts) {
                     ? (0, utils_1.randomBytes)(signRandBytes)
                     : random;
             (0, utils_1.abytes)(rnd, 32, 'extraEntropy');
-            const rhoprime = sha3_js_1.shake256
-                .create({ dkLen: CRH_BYTES })
+            const rhoprime = sha3_1.shake256
+                .create({})
                 .update(_K)
                 .update(rnd)
                 .update(mu)
-                .digest(); // ρ′← H(K||rnd||µ, 512)
+                .xof(CRH_BYTES); // ρ′← H(K||rnd||µ, 512)
             (0, utils_1.abytes)(rhoprime, CRH_BYTES);
             const x256 = XOF256(rhoprime, ZCoder.bytesLen);
             //  Rejection sampling loop
@@ -417,11 +419,11 @@ function getDilithium(opts) {
                 }
                 const w1 = w.map((j) => j.map(HighBits)); // w1 ← HighBits(w)
                 // Commitment hash: c˜ ∈{0, 1 2λ } ← H(µ||w1Encode(w1), 2λ)
-                const cTilde = sha3_js_1.shake256
-                    .create({ dkLen: C_TILDE_BYTES })
+                const cTilde = sha3_1.shake256
+                    .create({})
                     .update(mu)
                     .update(W1Vec.encode(w1))
-                    .digest();
+                    .xof(C_TILDE_BYTES);
                 // Verifer’s challenge
                 const cHat = NTT.encode(SampleInBall(cTilde)); // c ← SampleInBall(c˜1); cˆ ← NTT(c)
                 // ⟨⟨cs1⟩⟩ ← NTT−1(cˆ◦ sˆ1)
@@ -464,7 +466,7 @@ function getDilithium(opts) {
             const { externalMu = false } = opts;
             // ML-DSA.Verify(pk, M, σ): Verifes a signature σ for a message M.
             const [rho, t1] = publicCoder.decode(publicKey); // (ρ, t1) ← pkDecode(pk)
-            const tr = (0, sha3_js_1.shake256)(publicKey, { dkLen: TR_BYTES }); // 6: tr ← H(BytesToBits(pk), 512)
+            const tr = (0, sha3_1.shake256)(publicKey, { dkLen: TR_BYTES }); // 6: tr ← H(BytesToBits(pk), 512)
             if (sig.length !== sigCoder.bytesLen)
                 return false; // return false instead of exception
             const [cTilde, z, h] = sigCoder.decode(sig); // (c˜, z, h) ← sigDecode(σ), ▷ Signer’s commitment hash c ˜, response z and hint
@@ -475,7 +477,7 @@ function getDilithium(opts) {
                     return false;
             const mu = externalMu
                 ? msg
-                : sha3_js_1.shake256.create({ dkLen: CRH_BYTES }).update(tr).update(msg).digest(); // 7: µ ← H(tr||M, 512)
+                : sha3_1.shake256.create({}).update(tr).update(msg).xof(CRH_BYTES); // 7: µ ← H(tr||M, 512)
             // Compute verifer’s challenge from c˜
             const c = NTT.encode(SampleInBall(cTilde)); // c ← SampleInBall(c˜1)
             const zNtt = z.map((i) => i.slice()); // zNtt = NTT(z)
@@ -497,11 +499,11 @@ function getDilithium(opts) {
             }
             xof.clean();
             // c˜′← H (µ||w1Encode(w′1), 2λ),  Hash it; this should match c˜
-            const c2 = sha3_js_1.shake256
-                .create({ dkLen: C_TILDE_BYTES })
+            const c2 = sha3_1.shake256
+                .create({})
                 .update(mu)
                 .update(W1Vec.encode(wTick1))
-                .digest();
+                .xof(C_TILDE_BYTES);
             // Additional checks in FIPS-204:
             // [[ ||z||∞ < γ1 − β ]] and [[c ˜ = c˜′]] and [[number of 1’s in h is ≤ ω]]
             for (const t of h) {

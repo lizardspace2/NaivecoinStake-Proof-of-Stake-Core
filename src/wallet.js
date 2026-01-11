@@ -1,9 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTransaction = exports.DILITHIUM_LEVEL = exports.getDilithiumSync = exports.findUnspentTxOuts = exports.getBalance = exports.getPublicFromWallet = exports.getPrivateFromWallet = exports.deleteWallet = exports.initWallet = void 0;
 const ml_dsa_1 = require("./noble/ml-dsa");
 const fs_1 = require("fs");
-const _ = require("lodash");
+const lodash_1 = __importDefault(require("lodash"));
 const privateKeyLocation = 'node/wallet/private_key.json'; // Adjusted path to match typical structure or keep as is?
 // The user's code had `data/blockchain.json`, let's assume `node/wallet/...`
 // Actually, original code imported `getPrivateFromWallet` but didn't show `wallet.ts`.
@@ -73,13 +76,13 @@ const deleteWallet = () => {
 };
 exports.deleteWallet = deleteWallet;
 const getBalance = (address, unspentTxOuts) => {
-    return _(findUnspentTxOuts(address, unspentTxOuts))
+    return (0, lodash_1.default)(findUnspentTxOuts(address, unspentTxOuts))
         .map((uTxO) => uTxO.amount)
         .sum();
 };
 exports.getBalance = getBalance;
 const findUnspentTxOuts = (ownerAddress, unspentTxOuts) => {
-    return _.filter(unspentTxOuts, (uTxO) => uTxO.address === ownerAddress);
+    return lodash_1.default.filter(unspentTxOuts, (uTxO) => uTxO.address === ownerAddress);
 };
 exports.findUnspentTxOuts = findUnspentTxOuts;
 // Replaces the old 'dilithium' binding.

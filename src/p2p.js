@@ -1,7 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSockets = exports.initP2PServer = exports.broadCastTransactionPool = exports.broadcastLatest = exports.connectToPeers = void 0;
-const WebSocket = require("ws");
+const ws_1 = __importDefault(require("ws"));
 const blockchain_1 = require("./blockchain");
 const transactionPool_1 = require("./transactionPool");
 const validation_errors_1 = require("./validation_errors");
@@ -24,7 +27,7 @@ var MessageType;
 class Message {
 }
 const initP2PServer = (p2pPort) => {
-    const server = new WebSocket.Server({ port: p2pPort });
+    const server = new ws_1.default.Server({ port: p2pPort });
     server.on('connection', (ws, req) => {
         const ip = req.socket.remoteAddress;
         if (peerManager_1.peerManager.isBanned(ip)) {
@@ -273,7 +276,7 @@ const connectToPeers = (newPeer) => {
         return;
     }
     pendingPeers.add(newPeer);
-    const ws = new WebSocket(newPeer);
+    const ws = new ws_1.default(newPeer);
     ws.on('open', () => {
         pendingPeers.delete(newPeer);
         initConnection(ws);
