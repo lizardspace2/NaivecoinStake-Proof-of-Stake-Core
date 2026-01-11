@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ValidationError = exports.ValidationErrorCode = void 0;
 var ValidationErrorCode;
 (function (ValidationErrorCode) {
     ValidationErrorCode["INVALID_STRUCTURE"] = "INVALID_STRUCTURE";

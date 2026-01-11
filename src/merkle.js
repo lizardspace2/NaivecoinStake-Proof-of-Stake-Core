@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getMerkleRoot = void 0;
 const CryptoJS = require("crypto-js");
 const getMerkleRoot = (transactions) => {
     const count = transactions.length;

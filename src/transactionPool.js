@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getCandidateTransactions = exports.updateTransactionPool = exports.getTransactionPool = exports.addToTransactionPool = void 0;
 const _ = require("lodash");
 const transaction_1 = require("./transaction");
 const MAX_TRANSACTION_POOL_SIZE = 1000;
@@ -9,16 +10,16 @@ const getTransactionPool = () => {
 };
 exports.getTransactionPool = getTransactionPool;
 const addToTransactionPool = (tx, unspentTxOuts) => {
-    if (!transaction_1.validateTransaction(tx, unspentTxOuts)) {
+    if (!(0, transaction_1.validateTransaction)(tx, unspentTxOuts)) {
         throw Error('Trying to add invalid tx to pool');
     }
     if (!isValidTxForPool(tx, transactionPool)) {
         throw Error('Trying to add invalid tx to pool');
     }
     if (transactionPool.length >= MAX_TRANSACTION_POOL_SIZE) {
-        const poolWithFees = transactionPool.map(t => ({ tx: t, fee: transaction_1.getTxFee(t, unspentTxOuts) }));
+        const poolWithFees = transactionPool.map(t => ({ tx: t, fee: (0, transaction_1.getTxFee)(t, unspentTxOuts) }));
         const minFeeTx = _.minBy(poolWithFees, 'fee');
-        const newTxFee = transaction_1.getTxFee(tx, unspentTxOuts);
+        const newTxFee = (0, transaction_1.getTxFee)(tx, unspentTxOuts);
         if (minFeeTx && minFeeTx.fee < newTxFee) {
             console.log('Evicting low fee tx: ' + minFeeTx.tx.id);
             transactionPool = _.without(transactionPool, minFeeTx.tx);
@@ -76,7 +77,7 @@ const isValidTxForPool = (tx, aTtransactionPool) => {
 };
 const getCandidateTransactions = (limit, unspentTxOuts) => {
     return _(transactionPool)
-        .map(tx => ({ tx, fee: transaction_1.getTxFee(tx, unspentTxOuts) }))
+        .map(tx => ({ tx, fee: (0, transaction_1.getTxFee)(tx, unspentTxOuts) }))
         .orderBy(['fee'], ['desc'])
         .take(limit)
         .map(wrapper => wrapper.tx)

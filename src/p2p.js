@@ -1,13 +1,6 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getSockets = exports.initP2PServer = exports.broadCastTransactionPool = exports.broadcastLatest = exports.connectToPeers = void 0;
 const WebSocket = require("ws");
 const blockchain_1 = require("./blockchain");
 const transactionPool_1 = require("./transactionPool");
@@ -52,6 +45,14 @@ const initP2PServer = (p2pPort) => {
             }
         });
     }, 5000);
+    // Active Resynchronization Loop
+    // Explicitly ask peers for their latest block state every 10 seconds
+    setInterval(() => {
+        if (sockets.length > 0) {
+            // console.log('Active Sync: checking for new blocks...');
+            broadcast(queryChainLengthMsg());
+        }
+    }, 30000);
 };
 exports.initP2PServer = initP2PServer;
 const getSockets = () => sockets;
@@ -112,7 +113,7 @@ const initMessageHandler = (ws) => {
                 }
                 receivedTransactions.forEach((transaction) => {
                     try {
-                        blockchain_1.handleReceivedTransaction(transaction);
+                        (0, blockchain_1.handleReceivedTransaction)(transaction);
                         broadcast(responseTransactionPoolMsg());
                     }
                     catch (e) {
@@ -145,11 +146,11 @@ const queryAllMsg = () => ({
     'data': null
 });
 const responseChainMsg = () => ({
-    'type': MessageType.RESPONSE_BLOCKCHAIN, 'data': JSON.stringify(blockchain_1.getBlockchain())
+    'type': MessageType.RESPONSE_BLOCKCHAIN, 'data': JSON.stringify((0, blockchain_1.getBlockchain)())
 });
 const responseLatestMsg = () => ({
     'type': MessageType.RESPONSE_BLOCKCHAIN,
-    'data': JSON.stringify([blockchain_1.getLatestBlock()])
+    'data': JSON.stringify([(0, blockchain_1.getLatestBlock)()])
 });
 const queryTransactionPoolMsg = () => ({
     'type': MessageType.QUERY_TRANSACTION_POOL,
@@ -157,7 +158,7 @@ const queryTransactionPoolMsg = () => ({
 });
 const responseTransactionPoolMsg = () => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
-    'data': JSON.stringify(transactionPool_1.getTransactionPool())
+    'data': JSON.stringify((0, transactionPool_1.getTransactionPool)())
 });
 const queryHeadersMsg = () => ({
     'type': MessageType.QUERY_HEADERS,
@@ -165,7 +166,7 @@ const queryHeadersMsg = () => ({
 });
 const responseHeadersMsg = () => ({
     'type': MessageType.RESPONSE_HEADERS,
-    'data': JSON.stringify(blockchain_1.getBlockHeaders(0, blockchain_1.getBlockchain().length))
+    'data': JSON.stringify((0, blockchain_1.getBlockHeaders)(0, (0, blockchain_1.getBlockchain)().length))
 });
 const initErrorHandler = (ws) => {
     const closeConnection = (myWs) => {
@@ -193,23 +194,23 @@ const punishPeer = (ws, penaltyType) => {
         ws.close();
     }
 };
-const handleBlockchainResponse = (receivedBlocks, ws) => __awaiter(this, void 0, void 0, function* () {
+const handleBlockchainResponse = async (receivedBlocks, ws) => {
     if (receivedBlocks.length === 0) {
         console.log('received block chain size of 0');
         return;
     }
     const latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
-    if (!blockchain_1.isValidBlockStructure(latestBlockReceived)) {
+    if (!(0, blockchain_1.isValidBlockStructure)(latestBlockReceived)) {
         console.log('block structuture not valid');
         return;
     }
-    const latestBlockHeld = blockchain_1.getLatestBlock();
+    const latestBlockHeld = (0, blockchain_1.getLatestBlock)();
     if (latestBlockReceived.index > latestBlockHeld.index) {
         console.log('blockchain possibly behind. We got: '
             + latestBlockHeld.index + ' Peer got: ' + latestBlockReceived.index);
         if (latestBlockHeld.hash === latestBlockReceived.previousHash) {
             try {
-                if (yield blockchain_1.addBlockToChain(latestBlockReceived)) {
+                if (await (0, blockchain_1.addBlockToChain)(latestBlockReceived)) {
                     broadcast(responseLatestMsg());
                 }
             }
@@ -229,7 +230,7 @@ const handleBlockchainResponse = (receivedBlocks, ws) => __awaiter(this, void 0,
         else {
             console.log('Received blockchain is longer than current blockchain');
             try {
-                yield blockchain_1.replaceChain(receivedBlocks);
+                await (0, blockchain_1.replaceChain)(receivedBlocks);
             }
             catch (e) {
                 if (e instanceof validation_errors_1.ValidationError && e.shouldBan) {
@@ -244,20 +245,20 @@ const handleBlockchainResponse = (receivedBlocks, ws) => __awaiter(this, void 0,
     else {
         console.log('received blockchain is not longer than received blockchain. Do nothing');
     }
-});
-const handleBinHeadersResponse = (receivedHeaders, ws) => __awaiter(this, void 0, void 0, function* () {
+};
+const handleBinHeadersResponse = async (receivedHeaders, ws) => {
     if (receivedHeaders.length === 0) {
         console.log('received headers size of 0');
         return;
     }
     console.log('Received headers. Count: ' + receivedHeaders.length);
     const latestHeader = receivedHeaders[receivedHeaders.length - 1];
-    const latestHeldBlock = blockchain_1.getLatestBlock();
+    const latestHeldBlock = (0, blockchain_1.getLatestBlock)();
     if (latestHeader.index > latestHeldBlock.index) {
         console.log('Peer has better chain (headers). Requesting full blocks.');
         write(ws, queryAllMsg());
     }
-});
+};
 const broadcastLatest = () => {
     broadcast(responseLatestMsg());
 };

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.peerManager = void 0;
 const INITIAL_SCORE = 100;
 const BAN_THRESHOLD = 0;
 const BAN_DURATION_MS = 60 * 60 * 1000;

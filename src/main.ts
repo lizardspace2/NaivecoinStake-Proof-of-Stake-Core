@@ -9,7 +9,7 @@ import {
 import { connectToPeers, getSockets, initP2PServer, broadCastTransactionPool } from './p2p';
 import { UnspentTxOut } from './transaction';
 import { getTransactionPool } from './transactionPool';
-import { getPublicFromWallet, initWallet, initDilithium } from './wallet';
+import { getPublicFromWallet, initWallet } from './wallet';
 
 const httpPort: number = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort: number = parseInt(process.env.P2P_PORT) || 6001;
@@ -215,7 +215,7 @@ const initAutoMining = () => {
     }, interval);
 };
 
-initDilithium().then(() => {
+const initQuantum = async () => {
     initGenesisBlock();
     initWallet();
     initHttpServer(httpPort);
@@ -237,7 +237,9 @@ initDilithium().then(() => {
         connectToPeers(peer);
     });
     console.log('Quantix post-quantum cryptography initialized');
-}).catch((error) => {
+};
+
+initQuantum().catch((error) => {
     console.error('Failed to initialize Quantix core:', error);
     process.exit(1);
 });
