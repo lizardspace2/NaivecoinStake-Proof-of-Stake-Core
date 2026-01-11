@@ -4,9 +4,9 @@ import * as _ from 'lodash';
 import {
     Block, generateNextBlock, generatenextBlockWithTransaction, generateRawNextBlock, getAccountBalance,
     getBlockchain, getBlockHeaders, getMyUnspentTransactionOutputs, getUnspentTxOuts, sendTransaction, initGenesisBlock,
-    getTotalSupply, getAllBalances
+    getTotalSupply, getAllBalances, handleReceivedTransaction
 } from './blockchain';
-import { connectToPeers, getSockets, initP2PServer } from './p2p';
+import { connectToPeers, getSockets, initP2PServer, broadCastTransactionPool } from './p2p';
 import { UnspentTxOut } from './transaction';
 import { getTransactionPool } from './transactionPool';
 import { getPublicFromWallet, initWallet, initDilithium } from './wallet';
@@ -162,6 +162,18 @@ const initHttpServer = (myHttpPort: number) => {
 
     app.get('/transactionPool', (req, res) => {
         res.send(getTransactionPool());
+    });
+
+    app.post('/transactionPool', checkSafeMode, (req, res) => {
+        try {
+            const tx = req.body;
+            handleReceivedTransaction(tx);
+            broadCastTransactionPool();
+            res.send('transaction added to pool');
+        } catch (e) {
+            console.log('transactionPool error: ' + e.message);
+            res.status(400).send(e.message);
+        }
     });
 
     app.get('/peers', (req, res) => {
