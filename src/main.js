@@ -17,6 +17,14 @@ const transactionPool_1 = require("./transactionPool");
 const wallet_1 = require("./wallet");
 const httpPort = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort = parseInt(process.env.P2P_PORT) || 6001;
+const safeMode = process.env.SAFE_MODE === 'true';
+const checkSafeMode = (req, res, next) => {
+    if (safeMode) {
+        res.status(403).send('Endpoint disabled in safe mode');
+        return;
+    }
+    next();
+};
 const initHttpServer = (myHttpPort) => {
     const app = express();
     app.set('etag', false);
@@ -33,6 +41,16 @@ const initHttpServer = (myHttpPort) => {
         const block = _.find(blockchain_1.getBlockchain(), { 'hash': req.params.hash });
         res.send(block);
     });
+    app.get('/block/index/:index', (req, res) => {
+        const block = _.find(blockchain_1.getBlockchain(), { 'index': parseInt(req.params.index) });
+        res.send(block);
+    });
+    app.get('/blocks/:from/:to', (req, res) => {
+        const from = parseInt(req.params.from);
+        const to = parseInt(req.params.to);
+        const blocks = blockchain_1.getBlockHeaders(from, to);
+        res.send(blocks);
+    });
     app.get('/transaction/:id', (req, res) => {
         const tx = _(blockchain_1.getBlockchain())
             .map((blocks) => blocks.data)
@@ -47,10 +65,16 @@ const initHttpServer = (myHttpPort) => {
     app.get('/unspentTransactionOutputs', (req, res) => {
         res.send(blockchain_1.getUnspentTxOuts());
     });
+    app.get('/totalSupply', (req, res) => {
+        res.send({ 'supply': blockchain_1.getTotalSupply() });
+    });
+    app.get('/addresses', (req, res) => {
+        res.send(blockchain_1.getAllBalances());
+    });
     app.get('/myUnspentTransactionOutputs', (req, res) => {
         res.send(blockchain_1.getMyUnspentTransactionOutputs());
     });
-    app.post('/mintRawBlock', (req, res) => __awaiter(this, void 0, void 0, function* () {
+    app.post('/mintRawBlock', checkSafeMode, (req, res) => __awaiter(this, void 0, void 0, function* () {
         if (req.body.data == null) {
             res.send('data parameter is missing');
             return;
@@ -63,7 +87,7 @@ const initHttpServer = (myHttpPort) => {
             res.send(newBlock);
         }
     }));
-    app.post('/mintBlock', (req, res) => __awaiter(this, void 0, void 0, function* () {
+    app.post('/mintBlock', checkSafeMode, (req, res) => __awaiter(this, void 0, void 0, function* () {
         const newBlock = yield blockchain_1.generateNextBlock();
         if (newBlock === null) {
             res.status(400).send('could not generate block');
@@ -80,7 +104,7 @@ const initHttpServer = (myHttpPort) => {
         const address = wallet_1.getPublicFromWallet();
         res.send({ 'address': address });
     });
-    app.post('/mintTransaction', (req, res) => __awaiter(this, void 0, void 0, function* () {
+    app.post('/mintTransaction', checkSafeMode, (req, res) => __awaiter(this, void 0, void 0, function* () {
         const address = req.body.address;
         const amount = req.body.amount;
         try {
@@ -101,7 +125,7 @@ const initHttpServer = (myHttpPort) => {
             res.status(400).send(e.message);
         }
     }));
-    app.post('/sendTransaction', (req, res) => {
+    app.post('/sendTransaction', checkSafeMode, (req, res) => {
         try {
             const address = req.body.address;
             const amount = req.body.amount;
@@ -125,19 +149,34 @@ const initHttpServer = (myHttpPort) => {
     app.get('/transactionPool', (req, res) => {
         res.send(transactionPool_1.getTransactionPool());
     });
+    app.post('/transactionPool', checkSafeMode, (req, res) => {
+        try {
+            const tx = req.body;
+            blockchain_1.handleReceivedTransaction(tx);
+            p2p_1.broadCastTransactionPool();
+            res.send('transaction added to pool');
+        }
+        catch (e) {
+            console.log('transactionPool error: ' + e.message);
+            res.status(400).send(e.message);
+        }
+    });
     app.get('/peers', (req, res) => {
         res.send(p2p_1.getSockets().map((s) => s._socket.remoteAddress + ':' + s._socket.remotePort));
     });
-    app.post('/addPeer', (req, res) => {
+    app.post('/addPeer', checkSafeMode, (req, res) => {
         p2p_1.connectToPeers(req.body.peer);
         res.send();
     });
-    app.post('/stop', (req, res) => {
+    app.post('/stop', checkSafeMode, (req, res) => {
         res.send({ 'msg': 'stopping server' });
         process.exit();
     });
     app.listen(myHttpPort, () => {
         console.log('Listening http on port: ' + myHttpPort);
+        if (safeMode) {
+            console.log('Safe mode enabled: invalidating all non-read-only endpoints');
+        }
     });
 };
 const initAutoMining = () => {
@@ -174,9 +213,9 @@ wallet_1.initDilithium().then(() => {
     peers.forEach((peer) => {
         p2p_1.connectToPeers(peer);
     });
-    console.log('Dilithium post-quantum cryptography initialized');
+    console.log('Quantix post-quantum cryptography initialized');
 }).catch((error) => {
-    console.error('Failed to initialize Dilithium:', error);
+    console.error('Failed to initialize Quantix core:', error);
     process.exit(1);
 });
 //# sourceMappingURL=main.js.map
