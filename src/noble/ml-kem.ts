@@ -326,7 +326,7 @@ function createKyber(opts: KyberOpts) {
       const Khat = kr.subarray(0, 32);
       const cipherText2 = KPKE.encrypt(publicKey, msg, kr.subarray(32, 64)); // re-encrypt using the derived randomness
       const isValid = equalBytes(cipherText, cipherText2); // if ciphertexts do not match, “implicitly reject”
-      const Kbar = KDF.create().update(z).update(cipherText).xof(32);
+      const Kbar = KDF.create({}).update(z).update(cipherText).xof(32);
       cleanBytes(msg, cipherText2, !isValid ? Khat : Kbar);
       return isValid ? Khat : Kbar;
     },
