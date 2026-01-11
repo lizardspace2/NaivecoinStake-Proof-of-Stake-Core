@@ -1,6 +1,6 @@
 import { ml_dsa65 } from './noble/ml-dsa';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { UnspentTxOut, TxIn, Transaction, TxOut } from './transaction';
 
 const privateKeyLocation = 'node/wallet/private_key.json'; // Adjusted path to match typical structure or keep as is?

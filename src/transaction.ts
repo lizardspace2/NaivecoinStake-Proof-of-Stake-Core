@@ -1,5 +1,5 @@
 import * as CryptoJS from 'crypto-js';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { getDilithiumSync, DILITHIUM_LEVEL } from './wallet';
 import { ValidationError, ValidationErrorCode } from './validation_errors';
 
