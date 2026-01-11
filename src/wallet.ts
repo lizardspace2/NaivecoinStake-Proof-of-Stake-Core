@@ -18,9 +18,12 @@ const buf2hex = (buffer: Uint8Array): string => {
 };
 
 const hex2buf = (hex: string): Uint8Array => {
+    if (typeof hex !== 'string') {
+        hex = String(hex);
+    }
     const bytes = new Uint8Array(hex.length / 2);
     for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+        bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
     }
     return bytes;
 };
@@ -30,7 +33,7 @@ const getPrivateFromWallet = (): string => {
     try {
         const json = JSON.parse(content);
         if (json.privateKey) {
-            return json.privateKey;
+            return String(json.privateKey);
         }
         return content;
     } catch (e) {
