@@ -20,9 +20,9 @@
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-import { sha3_256, sha3_512, shake256 } from '@noble/hashes/sha3.js';
-import { type CHash, u32 } from '@noble/hashes/utils.js';
-import { genCrystals, type XOF, XOF128 } from './_crystals.ts';
+import { sha3_256, sha3_512, shake256 } from '@noble/hashes/sha3';
+import { type CHash, u32 } from '@noble/hashes/utils';
+import { genCrystals, type XOF, XOF128 } from './_crystals';
 import {
   abytes,
   cleanBytes,
@@ -33,7 +33,7 @@ import {
   randomBytes,
   splitCoder,
   vecCoder,
-} from './utils.ts';
+} from './utils';
 
 /** Key encapsulation mechanism interface */
 
@@ -67,7 +67,7 @@ export type KEMParam = {
 export const PARAMS: Record<string, KEMParam> = {
   512: { N, Q, K: 2, ETA1: 3, ETA2: 2, du: 10, dv: 4, RBGstrength: 128 },
   768: { N, Q, K: 3, ETA1: 2, ETA2: 2, du: 10, dv: 4, RBGstrength: 192 },
-  1024:{ N, Q, K: 4, ETA1: 2, ETA2: 2, du: 11, dv: 5, RBGstrength: 256 },
+  1024: { N, Q, K: 4, ETA1: 2, ETA2: 2, du: 11, dv: 5, RBGstrength: 256 },
 } as const;
 
 // FIPS-203: compress/decompress
@@ -137,7 +137,7 @@ type KyberOpts = KEMParam & {
 // Return poly in NTT representation
 function SampleNTT(xof: XofGet) {
   const r: Poly = new Uint16Array(N);
-  for (let j = 0; j < N; ) {
+  for (let j = 0; j < N;) {
     const b = xof();
     if (b.length % 3) throw new Error('SampleNTT: unaligned block');
     for (let i = 0; j < N && i + 3 <= b.length; i += 3) {

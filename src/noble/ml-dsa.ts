@@ -8,9 +8,10 @@
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-import { abool } from '@noble/curves/utils.js';
-import { shake256 } from '@noble/hashes/sha3.js';
-import type { CHash } from '@noble/hashes/utils.js';
+// import { abool } from '@noble/curves/utils.js';
+const abool = (b: boolean, label: string) => { if (typeof b !== 'boolean') throw new Error(`${label} must be boolean`); };
+import { shake256 } from '@noble/hashes/sha3';
+import type { CHash } from '@noble/hashes/utils';
 import { genCrystals, type XOF, XOF128, XOF256 } from './_crystals';
 import {
   abytes,

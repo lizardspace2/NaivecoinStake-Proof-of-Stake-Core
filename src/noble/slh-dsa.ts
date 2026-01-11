@@ -27,16 +27,16 @@
  * @module
  */
 /*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) */
-import { hmac } from '@noble/hashes/hmac.js';
-import { sha256, sha512 } from '@noble/hashes/sha2.js';
-import { shake256 } from '@noble/hashes/sha3.js';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256, sha512 } from '@noble/hashes/sha2';
+import { shake256 } from '@noble/hashes/sha3';
 import {
   bytesToHex,
   concatBytes,
   createView,
   hexToBytes,
   type CHash,
-} from '@noble/hashes/utils.js';
+} from '@noble/hashes/utils';
 import {
   abytes,
   checkHash,
@@ -54,7 +54,7 @@ import {
   type Signer,
   type SigOpts,
   type VerOpts,
-} from './utils.ts';
+} from './utils';
 
 /**
  * * N: Security parameter (in bytes). W: Winternitz parameter
@@ -654,93 +654,93 @@ export const slh_dsa_shake_256s: SphincsSigner = /* @__PURE__ */ gen(PARAMS['256
 type ShaType = typeof sha256 | typeof sha512;
 const genSha =
   (h0: ShaType, h1: ShaType): GetContext =>
-  (opts) =>
-  (pub_seed, sk_seed?) => {
-    const { N } = opts;
-    /*
-    Perf debug stats, how much hashes we call?
-    128f_simple: { prf: 8305, thash: 96_922, hmsg: 1, gen_message_random: 1, mgf1: 2 }
-    256s_robust: { prf: 497_686, thash: 2_783_203, hmsg: 1, gen_message_random: 1, mgf1: 2_783_205}
-    256f_simple: { prf: 36_179, thash: 309_693, hmsg: 1, gen_message_random: 1, mgf1: 2 }
-    */
-    const stats = { prf: 0, thash: 0, hmsg: 0, gen_message_random: 0, mgf1: 0 };
+    (opts) =>
+      (pub_seed, sk_seed?) => {
+        const { N } = opts;
+        /*
+        Perf debug stats, how much hashes we call?
+        128f_simple: { prf: 8305, thash: 96_922, hmsg: 1, gen_message_random: 1, mgf1: 2 }
+        256s_robust: { prf: 497_686, thash: 2_783_203, hmsg: 1, gen_message_random: 1, mgf1: 2_783_205}
+        256f_simple: { prf: 36_179, thash: 309_693, hmsg: 1, gen_message_random: 1, mgf1: 2 }
+        */
+        const stats = { prf: 0, thash: 0, hmsg: 0, gen_message_random: 0, mgf1: 0 };
 
-    const counterB = new Uint8Array(4);
-    const counterV = createView(counterB);
-    const h0ps = h0
-      .create()
-      .update(pub_seed)
-      .update(new Uint8Array(h0.blockLen - N));
-    const h1ps = h1
-      .create()
-      .update(pub_seed)
-      .update(new Uint8Array(h1.blockLen - N));
+        const counterB = new Uint8Array(4);
+        const counterV = createView(counterB);
+        const h0ps = h0
+          .create()
+          .update(pub_seed)
+          .update(new Uint8Array(h0.blockLen - N));
+        const h1ps = h1
+          .create()
+          .update(pub_seed)
+          .update(new Uint8Array(h1.blockLen - N));
 
-    const h0tmp = h0ps.clone();
-    const h1tmp = h1ps.clone();
+        const h0tmp = h0ps.clone();
+        const h1tmp = h1ps.clone();
 
-    // https://www.rfc-editor.org/rfc/rfc8017.html#appendix-B.2.1
-    function mgf1(seed: Uint8Array, length: number, hash: ShaType) {
-      stats.mgf1++;
-      const out = new Uint8Array(Math.ceil(length / hash.outputLen) * hash.outputLen);
-      // NOT 2^32-1
-      if (length > 2 ** 32) throw new Error('mask too long');
-      for (let counter = 0, o = out; o.length; counter++) {
-        counterV.setUint32(0, counter, false);
-        hash.create().update(seed).update(counterB).digestInto(o);
-        o = o.subarray(hash.outputLen);
-      }
-      cleanBytes(out.subarray(length));
-      return out.subarray(0, length);
-    }
+        // https://www.rfc-editor.org/rfc/rfc8017.html#appendix-B.2.1
+        function mgf1(seed: Uint8Array, length: number, hash: ShaType) {
+          stats.mgf1++;
+          const out = new Uint8Array(Math.ceil(length / hash.outputLen) * hash.outputLen);
+          // NOT 2^32-1
+          if (length > 2 ** 32) throw new Error('mask too long');
+          for (let counter = 0, o = out; o.length; counter++) {
+            counterV.setUint32(0, counter, false);
+            hash.create().update(seed).update(counterB).digestInto(o);
+            o = o.subarray(hash.outputLen);
+          }
+          cleanBytes(out.subarray(length));
+          return out.subarray(0, length);
+        }
 
-    const thash =
-      (_: ShaType, h: typeof h0ps, hTmp: typeof h0ps) =>
-      (blocks: number, input: Uint8Array, addr: ADRS) => {
-        stats.thash++;
-        const d = h
-          ._cloneInto(hTmp as any)
-          .update(addr)
-          .update(input.subarray(0, blocks * N))
-          .digest();
-        return d.subarray(0, N);
+        const thash =
+          (_: ShaType, h: typeof h0ps, hTmp: typeof h0ps) =>
+            (blocks: number, input: Uint8Array, addr: ADRS) => {
+              stats.thash++;
+              const d = h
+                ._cloneInto(hTmp as any)
+                .update(addr)
+                .update(input.subarray(0, blocks * N))
+                .digest();
+              return d.subarray(0, N);
+            };
+        return {
+          PRFaddr: (addr: ADRS) => {
+            if (!sk_seed) throw new Error('No sk seed');
+            stats.prf++;
+            const res = h0ps
+              ._cloneInto(h0tmp as any)
+              .update(addr)
+              .update(sk_seed)
+              .digest()
+              .subarray(0, N);
+            return res;
+          },
+          PRFmsg: (skPRF: Uint8Array, random: Uint8Array, msg: Uint8Array) => {
+            stats.gen_message_random++;
+            return hmac.create(h1, skPRF).update(random).update(msg).digest().subarray(0, N);
+          },
+          Hmsg: (R: Uint8Array, pk: Uint8Array, m: Uint8Array, outLen) => {
+            stats.hmsg++;
+            const seed = concatBytes(
+              R.subarray(0, N),
+              pk.subarray(0, N),
+              h1.create().update(R.subarray(0, N)).update(pk).update(m).digest()
+            );
+            return mgf1(seed, outLen, h1);
+          },
+          thash1: thash(h0, h0ps, h0tmp).bind(null, 1),
+          thashN: thash(h1, h1ps, h1tmp),
+          clean: () => {
+            h0ps.destroy();
+            h1ps.destroy();
+            h0tmp.destroy();
+            h1tmp.destroy();
+            //console.log(stats);
+          },
+        };
       };
-    return {
-      PRFaddr: (addr: ADRS) => {
-        if (!sk_seed) throw new Error('No sk seed');
-        stats.prf++;
-        const res = h0ps
-          ._cloneInto(h0tmp as any)
-          .update(addr)
-          .update(sk_seed)
-          .digest()
-          .subarray(0, N);
-        return res;
-      },
-      PRFmsg: (skPRF: Uint8Array, random: Uint8Array, msg: Uint8Array) => {
-        stats.gen_message_random++;
-        return hmac.create(h1, skPRF).update(random).update(msg).digest().subarray(0, N);
-      },
-      Hmsg: (R: Uint8Array, pk: Uint8Array, m: Uint8Array, outLen) => {
-        stats.hmsg++;
-        const seed = concatBytes(
-          R.subarray(0, N),
-          pk.subarray(0, N),
-          h1.create().update(R.subarray(0, N)).update(pk).update(m).digest()
-        );
-        return mgf1(seed, outLen, h1);
-      },
-      thash1: thash(h0, h0ps, h0tmp).bind(null, 1),
-      thashN: thash(h1, h1ps, h1tmp),
-      clean: () => {
-        h0ps.destroy();
-        h1ps.destroy();
-        h0tmp.destroy();
-        h1tmp.destroy();
-        //console.log(stats);
-      },
-    };
-  };
 
 const SHA256_SIMPLE = {
   isCompressed: true,

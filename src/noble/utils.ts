@@ -11,8 +11,8 @@ import {
   concatBytes,
   isBytes,
   randomBytes as randb,
-} from '@noble/hashes/utils.js';
-export { abytes } from '@noble/hashes/utils.js';
+} from '@noble/hashes/utils';
+export { abytes } from '@noble/hashes/utils';
 export { concatBytes };
 export const randomBytes: typeof randb = randb;
 
