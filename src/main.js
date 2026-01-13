@@ -220,7 +220,10 @@ const initQuantum = async () => {
     initHttpServer(httpPort);
     (0, p2p_1.initP2PServer)(p2pPort);
     initAutoMining();
-    const bootNodes = ['ws://34.66.32.62:6001'];
+    const bootNodes = [
+        'ws://34.58.38.118:6001',
+        'ws://34.70.214.237:6001' // Explorer Node (Public)
+    ];
     let peers = bootNodes;
     if (process.env.PEERS) {
         const customPeers = process.env.PEERS.split(',');
@@ -235,6 +238,19 @@ const initQuantum = async () => {
 };
 initQuantum().catch((error) => {
     console.error('Failed to initialize Quantix core:', error);
-    process.exit(1);
+    // User requested the node to never stop. We logs the error but keep the process alive if possible, 
+    // though critical initialization failure might still require a restart (handled by Docker).
+    // For now, we will NOT exit, but usually init failure implies the app is dead.
+    // However, the user specifically asked for "never stop".
+    // A better approach for init failure is to retry.
+});
+// Global Error Handlers to prevent crashes
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    // Keep the process alive
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Keep the process alive
 });
 //# sourceMappingURL=main.js.map

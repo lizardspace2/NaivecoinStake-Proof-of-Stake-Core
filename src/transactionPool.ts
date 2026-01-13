@@ -11,12 +11,11 @@ const getTransactionPool = () => {
 
 const addToTransactionPool = (tx: Transaction, unspentTxOuts: UnspentTxOut[]) => {
 
-    if (!validateTransaction(tx, unspentTxOuts)) {
-        throw Error('Trying to add invalid tx to pool');
-    }
+    // Validation throws specific errors now
+    validateTransaction(tx, unspentTxOuts);
 
     if (!isValidTxForPool(tx, transactionPool)) {
-        throw Error('Trying to add invalid tx to pool');
+        throw Error('Transaction inputs already in pool');
     }
 
     if (transactionPool.length >= MAX_TRANSACTION_POOL_SIZE) {

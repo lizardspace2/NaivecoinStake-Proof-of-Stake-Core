@@ -13,11 +13,10 @@ const getTransactionPool = () => {
 };
 exports.getTransactionPool = getTransactionPool;
 const addToTransactionPool = (tx, unspentTxOuts) => {
-    if (!(0, transaction_1.validateTransaction)(tx, unspentTxOuts)) {
-        throw Error('Trying to add invalid tx to pool');
-    }
+    // Validation throws specific errors now
+    (0, transaction_1.validateTransaction)(tx, unspentTxOuts);
     if (!isValidTxForPool(tx, transactionPool)) {
-        throw Error('Trying to add invalid tx to pool');
+        throw Error('Transaction inputs already in pool');
     }
     if (transactionPool.length >= MAX_TRANSACTION_POOL_SIZE) {
         const poolWithFees = transactionPool.map(t => ({ tx: t, fee: (0, transaction_1.getTxFee)(t, unspentTxOuts) }));
