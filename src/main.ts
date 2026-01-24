@@ -63,6 +63,46 @@ const initHttpServer = (myHttpPort: number) => {
         res.send(tx);
     });
 
+    app.get('/transaction-status/:id', (req, res) => {
+        const blockchain = getBlockchain();
+        const txId = req.params.id;
+        let foundBlock = null;
+
+        // Find block containing the transaction
+        for (let i = blockchain.length - 1; i >= 0; i--) {
+            const block = blockchain[i];
+            if (block.data.find(t => t.id === txId)) {
+                foundBlock = block;
+                break;
+            }
+        }
+
+        if (foundBlock) {
+            const latestBlock = blockchain[blockchain.length - 1];
+            const confirmations = latestBlock.index - foundBlock.index + 1;
+            res.send({
+                found: true,
+                mined: true,
+                blockIndex: foundBlock.index,
+                confirmations: confirmations,
+                latestBlockIndex: latestBlock.index
+            });
+        } else {
+            res.send({ found: false, mined: false, confirmations: 0 });
+        }
+    });
+
+    app.get('/info', (req, res) => {
+        const blockchain = getBlockchain();
+        const latestBlock = blockchain[blockchain.length - 1];
+        res.send({
+            height: latestBlock.index,
+            latestHash: latestBlock.hash,
+            totalSupply: getTotalSupply(),
+            difficulty: latestBlock.difficulty
+        });
+    });
+
     app.get('/address/:address', (req, res) => {
         const unspentTxOuts: UnspentTxOut[] =
             _.filter(getUnspentTxOuts(), (uTxO) => uTxO.address === req.params.address);
