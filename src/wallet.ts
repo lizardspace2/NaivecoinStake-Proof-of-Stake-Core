@@ -1,3 +1,21 @@
+/*
+ * Copyright 2026 lizrdspace2
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file has been modified by lizrdspace2.
+ * Based on work by Sandoche Adittane and Lauri Hartikka.
+ */
 import { ml_dsa65 } from './noble/ml-dsa';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import _ from 'lodash';
@@ -103,18 +121,49 @@ const getDilithiumSync = () => {
     return {
         // Sign: (message, privateKey, level) -> signature
         sign: (message: Uint8Array, privateKey: Uint8Array, level: number) => {
-            // Level is ignored, fixed to ml_dsa65 (Dilithium3)
-            // Expect privateKey to be full Secret Key.
-            // If the passed privateKey is just the seed (32 bytes), we expand it.
+            // Level 2 (ML-DSA-44): Seed 32, SK 2560
+            // Level 3 (ML-DSA-65): Seed 32, SK 4032 (or 4000+ depending on implementation details)
+
+            // If passed a 32-byte seed, we need to decide which level to use. 
+            // The argument 'level' passed from transaction.ts/wallet logic isn't always reliable or used.
+            // PROPOSAL: Default to Level 2 if not specified, OR support explicit differentiation?
+            // Current codebase seems to default to Level 3.
+            // But user wants Level 2 support.
+
             let secretKey = privateKey;
+
+            // Case: Seed provided (32 bytes)
             if (privateKey.length === 32) {
-                const keys = ml_dsa65.keygen(privateKey);
-                secretKey = keys.secretKey;
+                // We default to Level 3 to match existing behavior for new blocks/wallet?
+                // OR we check 'level' param? usage: dilithium.sign(..., DILITHIUM_LEVEL)
+                // DILITHIUM_LEVEL is const 3.
+
+                if (level === 2) {
+                    const keys = (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).keygen(privateKey);
+                    return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).sign(message, keys.secretKey);
+                } else {
+                    const keys = ml_dsa65.keygen(privateKey);
+                    return ml_dsa65.sign(message, keys.secretKey);
+                }
             }
+
+            // Case: Full SK provided
+            // ML-DSA-44 SK size is 2560 bytes
+            if (privateKey.length === 2560) {
+                return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).sign(message, privateKey);
+            }
+
+            // Default/Fallback to ML-DSA-65
             return ml_dsa65.sign(message, secretKey);
         },
         // Verify: (signature, message, publicKey, level) -> boolean
         verify: (signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array, level: number) => {
+            // Auto-detect based on Public Key length
+            if (publicKey.length === 1312) {
+                // Level 2 (ML-DSA-44)
+                return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).verify(signature, message, publicKey);
+            }
+            // Default to Level 3 (ML-DSA-65) - PK size 1952
             return ml_dsa65.verify(signature, message, publicKey);
         }
     };
