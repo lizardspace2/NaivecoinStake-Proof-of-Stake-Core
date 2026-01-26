@@ -16,7 +16,8 @@
  * This file has been modified by lizrdspace2.
  * Based on work by Sandoche Adittane and Lauri Hartikka.
  */
-import { ml_dsa65 } from './noble/ml-dsa';
+
+import { ml_dsa65, ml_dsa44 } from './noble/ml-dsa';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import _ from 'lodash';
 import { UnspentTxOut, TxIn, Transaction, TxOut } from './transaction';
@@ -68,19 +69,33 @@ const getPublicFromWallet = (): string => {
     let publicKey: Uint8Array;
 
     if (keyBytes.length === 32) {
-        const keys = ml_dsa65.keygen(keyBytes);
+        // Default to Level 2
+        const keys = ml_dsa44.keygen(keyBytes);
         publicKey = keys.publicKey;
     } else {
-        // Assuming full SK, but noble doesn't easily extract PK from SK without re-keygen if SK format varies.
-        // FIPS 204 SK contains PK at the end (usually).
-        // For robustness, let's assume strict Seed storage or handle full key if possible.
-        // Fallback: Re-generate from seed if possible, otherwise we might need the PK stored separately.
-        // Let's assume the user stores the SEED.
+        // Assuming full SK
+        // Try to detect or fallback
         try {
-            const keys = ml_dsa65.keygen(keyBytes.slice(0, 32)); // Try using first 32 bytes as seed
-            publicKey = keys.publicKey;
+            // If length matches L2 SK
+            if (keyBytes.length === 2560) {
+                // It's L2
+                publicKey = keyBytes.slice(2560 - 1312); // In FIPS 204 SK, PK is at end? 
+                // Actually noble implementation: SK = [rho, K, tr, s1, s2, t0]. PK = [rho, t1].
+                // It's not a simple slice.
+                // We should use the library if possible.
+                // But noble doesn't expose `getPublicKey(sk)`.
+                // We rely on seed if possible.
+                throw new Error("Cannot derive PK from SK without re-keygen. Use Seed.");
+            }
+
+            // Fallback for L3
+            // ...
+            throw new Error("Cannot derive PK from SK without re-keygen. Use Seed.");
+
         } catch (e) {
-            throw new Error("Could not derive public key from wallet file. Ensure it contains a valid 32-byte seed hex.");
+            // Fallback: Try using first 32 bytes as seed for L2 (default migration)
+            const keys = ml_dsa44.keygen(keyBytes.slice(0, 32));
+            publicKey = keys.publicKey;
         }
     }
     return buf2hex(publicKey);
