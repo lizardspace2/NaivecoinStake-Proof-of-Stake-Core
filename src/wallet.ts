@@ -154,8 +154,8 @@ const getDilithiumSync = () => {
                 // DILITHIUM_LEVEL is const 3.
 
                 if (level === 2) {
-                    const keys = (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).keygen(privateKey);
-                    return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).sign(message, keys.secretKey);
+                    const keys = ml_dsa44.keygen(privateKey);
+                    return ml_dsa44.sign(message, keys.secretKey);
                 } else {
                     const keys = ml_dsa65.keygen(privateKey);
                     return ml_dsa65.sign(message, keys.secretKey);
@@ -165,7 +165,7 @@ const getDilithiumSync = () => {
             // Case: Full SK provided
             // ML-DSA-44 SK size is 2560 bytes
             if (privateKey.length === 2560) {
-                return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).sign(message, privateKey);
+                return ml_dsa44.sign(message, privateKey);
             }
 
             // Default/Fallback to ML-DSA-65
@@ -176,7 +176,7 @@ const getDilithiumSync = () => {
             // Auto-detect based on Public Key length
             if (publicKey.length === 1312) {
                 // Level 2 (ML-DSA-44)
-                return (require('./noble/ml-dsa').ml_dsa44 || require('@noble/post-quantum/ml-dsa').ml_dsa44).verify(signature, message, publicKey);
+                return ml_dsa44.verify(signature, message, publicKey);
             }
             // Default to Level 3 (ML-DSA-65) - PK size 1952
             return ml_dsa65.verify(signature, message, publicKey);

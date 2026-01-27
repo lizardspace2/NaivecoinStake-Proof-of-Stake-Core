@@ -26,6 +26,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+/*
+ * Copyright 2026 lizrdspace2
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file has been modified by lizrdspace2.
+ * Based on work by Sandoche Adittane and Lauri Hartikka.
+ */
 const bodyParser = __importStar(require("body-parser"));
 const express_1 = __importDefault(require("express"));
 const lodash_1 = __importDefault(require("lodash"));
@@ -75,6 +93,43 @@ const initHttpServer = (myHttpPort) => {
             .flatten()
             .find({ 'id': req.params.id });
         res.send(tx);
+    });
+    app.get('/transaction-status/:id', (req, res) => {
+        const blockchain = (0, blockchain_1.getBlockchain)();
+        const txId = req.params.id;
+        let foundBlock = null;
+        // Find block containing the transaction
+        for (let i = blockchain.length - 1; i >= 0; i--) {
+            const block = blockchain[i];
+            if (block.data.find(t => t.id === txId)) {
+                foundBlock = block;
+                break;
+            }
+        }
+        if (foundBlock) {
+            const latestBlock = blockchain[blockchain.length - 1];
+            const confirmations = latestBlock.index - foundBlock.index + 1;
+            res.send({
+                found: true,
+                mined: true,
+                blockIndex: foundBlock.index,
+                confirmations: confirmations,
+                latestBlockIndex: latestBlock.index
+            });
+        }
+        else {
+            res.send({ found: false, mined: false, confirmations: 0 });
+        }
+    });
+    app.get('/info', (req, res) => {
+        const blockchain = (0, blockchain_1.getBlockchain)();
+        const latestBlock = blockchain[blockchain.length - 1];
+        res.send({
+            height: latestBlock.index,
+            latestHash: latestBlock.hash,
+            totalSupply: (0, blockchain_1.getTotalSupply)(),
+            difficulty: latestBlock.difficulty
+        });
     });
     app.get('/address/:address', (req, res) => {
         const unspentTxOuts = lodash_1.default.filter((0, blockchain_1.getUnspentTxOuts)(), (uTxO) => uTxO.address === req.params.address);

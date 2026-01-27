@@ -27,6 +27,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateBlockTransactions = exports.hasDuplicates = exports.getPublicKey = exports.validateTransaction = exports.isValidAddress = exports.getTransactionId = exports.signTxIn = exports.processTransactions = exports.Transaction = exports.TxOut = exports.TxIn = exports.UnspentTxOut = exports.getTxFee = exports.getCoinbaseTransaction = exports.getCoinbaseAmount = void 0;
+/*
+ * Copyright 2026 lizrdspace2
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file has been modified by lizrdspace2.
+ * Based on work by Sandoche Adittane and Lauri Hartikka.
+ */
 const CryptoJS = __importStar(require("crypto-js"));
 const lodash_1 = __importDefault(require("lodash"));
 const wallet_1 = require("./wallet");
