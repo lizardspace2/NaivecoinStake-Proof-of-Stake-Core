@@ -82,6 +82,8 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plu
 git clone https://github.com/lizardspace2/NaivecoinStake-Proof-of-Stake-Core.git
 cd NaivecoinStake-Proof-of-Stake-Core
 ```
+git clone https://github.com/lizardspace2/quantumresistantcoin.git
+cd quantumresistantcoin
 
 ## 4. Genesis Configuration
 
